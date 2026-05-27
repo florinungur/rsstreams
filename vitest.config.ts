@@ -1,6 +1,17 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+// Mirror the `@/` and `~/` aliases that WXT generates in `.wxt/tsconfig.json`
+// so vitest resolves them the same way the production build does.
+const srcDir = fileURLToPath(new URL("./src", import.meta.url));
+
 export default defineConfig({
+    resolve: {
+        alias: {
+            "@/": `${srcDir}/`,
+            "~/": `${srcDir}/`,
+        },
+    },
     test: {
         globals: true,
         environment: "jsdom",
@@ -8,9 +19,17 @@ export default defineConfig({
         coverage: {
             provider: "v8",
             reporter: ["text", "lcov"],
-            // Per-phase scope – widened in Phase 3 (entrypoints) and Phase 4 (content).
-            include: ["src/lib/**"],
-            exclude: ["src/__mocks__/**", "**/*.d.ts", "**/*.test.ts"],
+            // Per-phase scope – widened in Phase 4 to add `src/entrypoints/extract-channel.ts`
+            // and `src/entrypoints/background.ts` once the scraper lands.
+            include: ["src/lib/**", "src/entrypoints/popup/**", "src/ui/**"],
+            exclude: [
+                "src/__mocks__/**",
+                "**/*.d.ts",
+                "**/*.test.ts",
+                // Non-TS assets; the v8 provider would try to parse them otherwise.
+                "**/*.html",
+                "**/*.css",
+            ],
             thresholds: {
                 lines: 100,
                 branches: 100,
