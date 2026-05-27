@@ -141,6 +141,64 @@ function parseFromDom(doc: Document): ChannelInfo | null {
     return { channelId, channelTitle, playlists: [] };
 }
 
+/**
+ * Pull `ytInitialData` out of YouTube's inline `<script>var ytInitialData =
+ * {...};</script>` block by walking script tags and brace-matching the
+ * embedded JSON. Used as a fallback when `window.ytInitialData` isn't visible
+ * to the content-script isolated world (Firefox MV3 default).
+ *
+ * Returns the parsed value, or `null` if no script tag carried the marker or
+ * the JSON failed to parse.
+ */
+export function extractYtInitialData(doc: Document): unknown {
+    const MARKER = "var ytInitialData = ";
+    const scripts = doc.querySelectorAll("script");
+    for (const script of scripts) {
+        const text = script.textContent;
+        if (!text) continue;
+        const start = text.indexOf(MARKER);
+        if (start === -1) continue;
+        const open = text.indexOf("{", start);
+        if (open === -1) continue;
+        const slice = sliceJsonObject(text, open);
+        if (slice === null) continue;
+        try {
+            return JSON.parse(slice);
+        } catch {
+            // Try the next script tag.
+        }
+    }
+    return null;
+}
+
+function sliceJsonObject(text: string, openIndex: number): string | null {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = openIndex; i < text.length; i++) {
+        const c = text[i];
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (c === "\\") {
+            escape = true;
+            continue;
+        }
+        if (c === '"') {
+            inString = !inString;
+            continue;
+        }
+        if (inString) continue;
+        if (c === "{") depth++;
+        else if (c === "}") {
+            depth--;
+            if (depth === 0) return text.slice(openIndex, i + 1);
+        }
+    }
+    return null;
+}
+
 // ----------------------- helpers -----------------------
 
 function isRecord(value: unknown): value is Record<string, unknown> {

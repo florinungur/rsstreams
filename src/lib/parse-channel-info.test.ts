@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseChannelInfo } from "./parse-channel-info";
+import { extractYtInitialData, parseChannelInfo } from "./parse-channel-info";
 
 const FIXTURE_DIR = join(__dirname, "..", "..", "test", "fixtures");
 
@@ -9,7 +9,7 @@ function loadFixture(name: string): string {
     return readFileSync(join(FIXTURE_DIR, name), "utf8");
 }
 
-function extractYtInitialData(html: string): unknown {
+function extractYtInitialDataFromString(html: string): unknown {
     const match = html.match(/var ytInitialData = (\{[\s\S]*?\});<\/script>/);
     if (!match || match[1] === undefined) {
         throw new Error("ytInitialData not found in fixture");
@@ -24,7 +24,7 @@ function parseHtmlToDocument(html: string): Document {
 describe("parseChannelInfo – ytInitialData path", () => {
     it("extracts channelId, title, and named playlists from a handle page", () => {
         const html = loadFixture("mkbhd-handle.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(html) });
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info).not.toBeNull();
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
@@ -40,7 +40,7 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("extracts channelId from the canonical /channel/UC… URL", () => {
         const html = loadFixture("mkbhd-channel-id.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(html) });
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
@@ -48,7 +48,7 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("resolves channelId from a watch page via videoOwnerRenderer", () => {
         const html = loadFixture("mkbhd-watch.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(html) });
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
@@ -59,7 +59,7 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("resolves channelId from a playlist page via videoOwnerRenderer", () => {
         const html = loadFixture("mkbhd-playlist.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(html) });
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
@@ -68,7 +68,7 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("handles a channel with no Shorts (zero impact on parser output)", () => {
         const html = loadFixture("no-shorts-channel.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(html) });
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UC9-y-6csu5WGm29I7JiwpnA");
         expect(info?.channelTitle).toBe("Computerphile");
@@ -164,6 +164,78 @@ describe("parseChannelInfo – failure modes", () => {
             },
         };
         expect(parseChannelInfo({ ytInitialData: data })).toBeNull();
+    });
+});
+
+describe("extractYtInitialData – inline-script fallback", () => {
+    it("recovers ytInitialData from a captured handle page's inline script", () => {
+        const doc = parseHtmlToDocument(loadFixture("mkbhd-handle.html"));
+        const data = extractYtInitialData(doc) as {
+            metadata?: { channelMetadataRenderer?: { externalId?: string } };
+        };
+        expect(data?.metadata?.channelMetadataRenderer?.externalId).toBe(
+            "UCBJycsmduvYEL83R_U4JriQ",
+        );
+    });
+
+    it("recovers ytInitialData on watch pages too", () => {
+        const doc = parseHtmlToDocument(loadFixture("mkbhd-watch.html"));
+        const data = extractYtInitialData(doc);
+        expect(data).not.toBeNull();
+        expect(typeof data).toBe("object");
+    });
+
+    it("returns null when no script carries the marker", () => {
+        const doc = parseHtmlToDocument("<html><body><p>nothing here</p></body></html>");
+        expect(extractYtInitialData(doc)).toBeNull();
+    });
+
+    it("ignores scripts that contain the marker but no following object", () => {
+        const doc = parseHtmlToDocument(
+            "<html><body><script>var ytInitialData = ;</script></body></html>",
+        );
+        expect(extractYtInitialData(doc)).toBeNull();
+    });
+
+    it("ignores scripts whose ytInitialData JSON fails to parse", () => {
+        const doc = parseHtmlToDocument(
+            "<html><body><script>var ytInitialData = {not valid json};</script></body></html>",
+        );
+        expect(extractYtInitialData(doc)).toBeNull();
+    });
+
+    it("skips empty script tags and finds the next match", () => {
+        const doc = parseHtmlToDocument(
+            `<html><body>
+                <script></script>
+                <script>var ytInitialData = {"channelId":"UCFOUND"};</script>
+            </body></html>`,
+        );
+        expect(extractYtInitialData(doc)).toEqual({ channelId: "UCFOUND" });
+    });
+
+    it("handles quoted strings containing braces and backslashes", () => {
+        const doc = parseHtmlToDocument(
+            `<html><body><script>var ytInitialData = {"text":"a } \\\\ \\" still string","ok":true};</script></body></html>`,
+        );
+        expect(extractYtInitialData(doc)).toEqual({
+            text: 'a } \\ " still string',
+            ok: true,
+        });
+    });
+
+    it("ignores scripts that have the marker but no opening brace", () => {
+        const doc = parseHtmlToDocument(
+            "<html><body><script>var ytInitialData = null;</script></body></html>",
+        );
+        expect(extractYtInitialData(doc)).toBeNull();
+    });
+
+    it("ignores scripts whose object braces never close", () => {
+        const doc = parseHtmlToDocument(
+            '<html><body><script>var ytInitialData = {"a":"b"</script></body></html>',
+        );
+        expect(extractYtInitialData(doc)).toBeNull();
     });
 });
 

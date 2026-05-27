@@ -4,23 +4,31 @@
 // Filename avoids WXT's reserved `content` entrypoint type, which forces a
 // manifest content-script registration with `matches`.
 //
-// The script is a thin shell over `parseChannelInfo`: read `window.ytInitialData`
-// (YouTube keeps it current across SPA navigation) and pass the live document
-// as the DOM fallback source. `defineUnlistedScript`'s function return value
-// becomes the script's last expression, which `executeScript` surfaces on
-// `InjectionResult.result`.
+// The script is a thin shell over `parseChannelInfo`. ytInitialData comes from
+// three sources in order:
+//   1. `window.ytInitialData` – works in `world: "MAIN"`; in the default
+//      isolated content-script world this is usually undefined.
+//   2. `window.wrappedJSObject.ytInitialData` – Firefox-specific bridge from
+//      the isolated world into the page's main JS object graph.
+//   3. The inline `<script>var ytInitialData = {…};</script>` block parsed
+//      via `extractYtInitialData(document)` – reliable from any world that
+//      can read the DOM.
+// `defineUnlistedScript`'s function return value becomes the script's last
+// expression, which `executeScript` surfaces on `InjectionResult.result`.
 
-import { parseChannelInfo } from "@/lib/parse-channel-info";
+import { extractYtInitialData, parseChannelInfo } from "@/lib/parse-channel-info";
 
 declare global {
     interface Window {
         ytInitialData?: unknown;
+        wrappedJSObject?: { ytInitialData?: unknown };
     }
 }
 
 export default defineUnlistedScript(() => {
-    return parseChannelInfo({
-        ytInitialData: window.ytInitialData,
-        document,
-    });
+    const ytInitialData =
+        window.ytInitialData ??
+        window.wrappedJSObject?.ytInitialData ??
+        extractYtInitialData(document);
+    return parseChannelInfo({ ytInitialData, document });
 });
