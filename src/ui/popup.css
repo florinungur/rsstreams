@@ -1,0 +1,16 @@
+/* Phase 1 baseline – Phase 3 expands with row layout, copy-flash state,
+   and prefers-color-scheme dark variants. */
+:root {
+    color-scheme: light dark;
+}
+
+body {
+    margin: 0;
+    padding: 12px;
+    min-width: 320px;
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+    font-size: 14px;
+}
