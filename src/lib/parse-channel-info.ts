@@ -134,6 +134,83 @@ function findNamedPlaylists(data: Record<string, unknown>): NamedPlaylist[] {
     return out;
 }
 
+/**
+ * Walk the Playlists tab's `ytInitialData` and return every named playlist
+ * shown in the grid. The Playlists tab is the canonical list (the Home tab
+ * only shows a curated subset of shelf playlists), so the extension fetches
+ * `/channel/<id>/playlists` separately to populate this regardless of which
+ * sub-page the user clicked the icon from.
+ *
+ * Filters to `PL…` IDs only – `FL…` (Favorites), `LL` (Liked), `WL` (Watch
+ * later), `HL` (History) are user-private and don't have public RSS feeds.
+ */
+export function parsePlaylistsTab(ytInitialData: unknown): NamedPlaylist[] {
+    if (!isRecord(ytInitialData)) return [];
+    const tabs = readPath(ytInitialData, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
+    if (!Array.isArray(tabs)) return [];
+
+    // Find the selected tab (which is "Playlists" when this fetch returns).
+    // Falling back to scanning every tab keeps the parser resilient against
+    // tab-ordering changes.
+    const out: NamedPlaylist[] = [];
+    const seen = new Set<string>();
+    for (const tab of tabs) {
+        const sections = readPath(tab, [
+            "tabRenderer",
+            "content",
+            "sectionListRenderer",
+            "contents",
+        ]);
+        if (!Array.isArray(sections)) continue;
+        collectLockupPlaylists(sections, out, seen);
+    }
+    return out;
+}
+
+function collectLockupPlaylists(node: unknown, out: NamedPlaylist[], seen: Set<string>): void {
+    if (Array.isArray(node)) {
+        for (const item of node) {
+            collectLockupPlaylists(item, out, seen);
+        }
+        return;
+    }
+    if (!isRecord(node)) return;
+
+    const lockup = node["lockupViewModel"];
+    if (isRecord(lockup)) {
+        const contentType = pickString(lockup["contentType"]);
+        if (contentType === "LOCKUP_CONTENT_TYPE_PLAYLIST") {
+            const contentId = pickString(lockup["contentId"]);
+            if (contentId && contentId.startsWith("PL") && !seen.has(contentId)) {
+                const name = pickString(
+                    readPath(lockup, ["metadata", "lockupMetadataViewModel", "title", "content"]),
+                );
+                if (name) {
+                    seen.add(contentId);
+                    out.push({ listId: contentId, name });
+                }
+            }
+        }
+    }
+
+    // Older "grid" shape – kept as a fallback for layout drift.
+    const grid = node["gridPlaylistRenderer"];
+    if (isRecord(grid)) {
+        const contentId = pickString(grid["playlistId"]);
+        if (contentId && contentId.startsWith("PL") && !seen.has(contentId)) {
+            const name = pickFirstRun(grid["title"]);
+            if (name) {
+                seen.add(contentId);
+                out.push({ listId: contentId, name });
+            }
+        }
+    }
+
+    for (const value of Object.values(node)) {
+        collectLockupPlaylists(value, out, seen);
+    }
+}
+
 function parseFromDom(doc: Document): ChannelInfo | null {
     const channelId = extractDomChannel(doc);
     const channelTitle = extractDomTitle(doc);

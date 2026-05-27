@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { extractYtInitialData, parseChannelInfo } from "./parse-channel-info";
+import { extractYtInitialData, parseChannelInfo, parsePlaylistsTab } from "./parse-channel-info";
 
 const FIXTURE_DIR = join(__dirname, "..", "..", "test", "fixtures");
 
@@ -164,6 +164,323 @@ describe("parseChannelInfo – failure modes", () => {
             },
         };
         expect(parseChannelInfo({ ytInitialData: data })).toBeNull();
+    });
+});
+
+describe("parsePlaylistsTab – Playlists-tab grid", () => {
+    it("extracts every PL playlist from the captured MKBHD playlists tab", () => {
+        const doc = parseHtmlToDocument(loadFixture("mkbhd-playlists-tab.html"));
+        const data = extractYtInitialData(doc);
+        const playlists = parsePlaylistsTab(data);
+
+        expect(playlists.length).toBeGreaterThanOrEqual(20);
+        for (const p of playlists) {
+            expect(p.listId).toMatch(/^PL/);
+            expect(p.name.length).toBeGreaterThan(0);
+        }
+        // Sanity-check a couple of known entries.
+        const names = playlists.map((p) => p.name);
+        expect(names).toContain("Reviews!");
+        expect(names).toContain("Dope Tech!");
+        // Favorites (FL prefix) and Watch Later (WL) are filtered out.
+        expect(playlists.find((p) => p.listId.startsWith("FL"))).toBeUndefined();
+    });
+
+    it("returns empty when ytInitialData is not a record", () => {
+        expect(parsePlaylistsTab(null)).toEqual([]);
+        expect(parsePlaylistsTab("string")).toEqual([]);
+        expect(parsePlaylistsTab(42)).toEqual([]);
+    });
+
+    it("returns empty when tabs is not an array", () => {
+        expect(
+            parsePlaylistsTab({
+                contents: { twoColumnBrowseResultsRenderer: { tabs: "nope" } },
+            }),
+        ).toEqual([]);
+    });
+
+    it("skips tabs without sectionListRenderer content", () => {
+        expect(
+            parsePlaylistsTab({
+                contents: {
+                    twoColumnBrowseResultsRenderer: {
+                        tabs: [{ tabRenderer: {} }],
+                    },
+                },
+            }),
+        ).toEqual([]);
+    });
+
+    it("supports the legacy gridPlaylistRenderer shape", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                gridPlaylistRenderer: {
+                                                    playlistId: "PLGRID001",
+                                                    title: { simpleText: "Legacy Grid" },
+                                                },
+                                            },
+                                            {
+                                                gridPlaylistRenderer: {
+                                                    playlistId: "PLGRID002",
+                                                    title: { runs: [{ text: "Run Title" }] },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([
+            { listId: "PLGRID001", name: "Legacy Grid" },
+            { listId: "PLGRID002", name: "Run Title" },
+        ]);
+    });
+
+    it("skips lockups whose contentType is not playlist", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_VIDEO",
+                                                    contentId: "PLVIDEO",
+                                                    metadata: {
+                                                        lockupMetadataViewModel: {
+                                                            title: { content: "Not a playlist" },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([]);
+    });
+
+    it("skips lockups whose contentId is missing a PL prefix", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+                                                    contentId: "FLPRIVATEXX",
+                                                    metadata: {
+                                                        lockupMetadataViewModel: {
+                                                            title: { content: "Favorites" },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([]);
+    });
+
+    it("skips lockups whose title is missing", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+                                                    contentId: "PLNOTITLE",
+                                                    metadata: {},
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([]);
+    });
+
+    it("deduplicates repeated contentIds", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+                                                    contentId: "PLDUP001",
+                                                    metadata: {
+                                                        lockupMetadataViewModel: {
+                                                            title: { content: "First" },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+                                                    contentId: "PLDUP001",
+                                                    metadata: {
+                                                        lockupMetadataViewModel: {
+                                                            title: { content: "Second" },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([{ listId: "PLDUP001", name: "First" }]);
+    });
+
+    it("skips grid renderers whose playlistId is missing PL prefix", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                gridPlaylistRenderer: {
+                                                    playlistId: "UUNOTPL",
+                                                    title: { simpleText: "System" },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([]);
+    });
+
+    it("skips grid renderers whose title is empty", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                gridPlaylistRenderer: {
+                                                    playlistId: "PLNOTITLE",
+                                                    title: {},
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([]);
+    });
+
+    it("dedupes across the lockup and grid shapes", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+                                                    contentId: "PLSAME001",
+                                                    metadata: {
+                                                        lockupMetadataViewModel: {
+                                                            title: { content: "Lockup" },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            {
+                                                gridPlaylistRenderer: {
+                                                    playlistId: "PLSAME001",
+                                                    title: { simpleText: "Grid" },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([{ listId: "PLSAME001", name: "Lockup" }]);
     });
 });
 
