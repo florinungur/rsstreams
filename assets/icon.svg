@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- YouTube-red rounded square; white play triangle whose tip emits RSS broadcast arcs -->
+  <rect width="128" height="128" rx="22" fill="#cc0000"/>
+  <!-- Play triangle, anchored bottom-left -->
+  <path d="M 30 32 L 30 96 L 78 64 Z" fill="#ffffff"/>
+  <!-- RSS arcs radiating from the tip of the triangle -->
+  <g fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round">
+    <path d="M 82 50 A 22 22 0 0 1 82 78"/>
+    <path d="M 94 38 A 40 40 0 0 1 94 90"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+{
+    "extends": "./.wxt/tsconfig.json",
+    "compilerOptions": {
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "verbatimModuleSyntax": true,
+        "moduleResolution": "bundler",
+        "noEmit": true,
+        "types": ["firefox-webext-browser", "vitest/globals"]
+    }
+}

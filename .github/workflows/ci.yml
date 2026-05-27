@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".gitignore"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".gitignore"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (default: triggering ref)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.3.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate WXT types
+        run: pnpm wxt:prepare
+
+      - name: Type check
+        run: pnpm compile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Unit tests + coverage gate
+        run: pnpm test:run
+
+      - name: Build Firefox extension
+        run: pnpm build
+
+      - name: web-ext lint
+        run: pnpm dlx web-ext lint --source-dir .output/firefox-mv3

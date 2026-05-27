@@ -1,0 +1,33 @@
+# pnpm 11+ uses this file for both workspace and project-level config.
+# Single-package "workspace" – `packages` must be present for pnpm to parse the file as a config source.
+packages:
+  - "."
+
+# Supply-chain hardening – complements ~/.config/pnpm/config.yaml (ignoreScripts).
+
+# Fail when peer deps are missing or incompatible.
+strictPeerDependencies: true
+autoInstallPeers: false
+
+# Audit gate – fail `pnpm audit` on moderate+ severity.
+auditLevel: moderate
+
+# Wait 1440 minutes (24h) before installing a freshly published version.
+# Mitigates fresh-malware injections caught within hours by the ecosystem.
+minimumReleaseAge: 1440
+
+# Allow-list of dependencies whose install / postinstall scripts may run.
+# Add a package here only after auditing what its postinstall does.
+onlyBuiltDependencies:
+  # Selects the platform-specific native binary; required by WXT/Vite build.
+  - esbuild
+
+# Acknowledge known ignored scripts without erroring.
+# spawn-sync compiles a sync-spawn fallback for ancient Node; vestigial on Node 26.
+ignoredBuiltDependencies:
+  - spawn-sync
+
+# pnpm 11 default `strictDepBuilds: true` errors on ANY ignored build script,
+# even when the dep is in the allow/ignore list. Convert to a warning so the
+# allow-list governs behaviour without hard-failing on novel transitive deps.
+strictDepBuilds: false
