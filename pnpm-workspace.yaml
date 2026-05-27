@@ -31,3 +31,10 @@ ignoredBuiltDependencies:
 # even when the dep is in the allow/ignore list. Convert to a warning so the
 # allow-list governs behaviour without hard-failing on novel transitive deps.
 strictDepBuilds: false
+
+# Force transitive deps onto patched versions for Dependabot advisories.
+# tmp <0.2.6: path-traversal via unsanitized prefix/postfix (GHSA-52f5-9888-hmc6).
+# uuid <11.1.1: missing buffer bounds check in v3/v5/v6 with `buf` arg (GHSA-mh3m-62v7-68xg).
+overrides:
+  tmp: ">=0.2.6"
+  uuid: ">=11.1.1"
