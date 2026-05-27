@@ -1,0 +1,12 @@
+# Captured YouTube HTML fixtures used by `parseChannelInfo` + `selectors`
+# unit tests. Keep verbatim – formatting them would defeat the point of
+# capturing the real DOM.
+test/fixtures/*.html
+
+# Build / coverage output.
+.output/
+coverage/
+.wxt/
+
+# Lockfile (managed by pnpm).
+pnpm-lock.yaml

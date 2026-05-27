@@ -4,9 +4,23 @@
 // Filename avoids WXT's reserved `content` entrypoint type, which forces a
 // manifest content-script registration with `matches`.
 //
-// Phase 4 implements `parseChannelInfo` (ytInitialData primary, DOM fallback)
-// and returns ChannelInfo as the script's last expression.
+// The script is a thin shell over `parseChannelInfo`: read `window.ytInitialData`
+// (YouTube keeps it current across SPA navigation) and pass the live document
+// as the DOM fallback source. `defineUnlistedScript`'s function return value
+// becomes the script's last expression, which `executeScript` surfaces on
+// `InjectionResult.result`.
+
+import { parseChannelInfo } from "@/lib/parse-channel-info";
+
+declare global {
+    interface Window {
+        ytInitialData?: unknown;
+    }
+}
+
 export default defineUnlistedScript(() => {
-    // Placeholder – Phase 4 replaces this with the parser call.
-    return null;
+    return parseChannelInfo({
+        ytInitialData: window.ytInitialData,
+        document,
+    });
 });

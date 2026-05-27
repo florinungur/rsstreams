@@ -143,3 +143,11 @@ body {
 .feed-row__copy--error {
     background: var(--button-bg-error);
 }
+
+.feed-list__empty {
+    margin: 0;
+    padding: 16px 12px;
+    color: var(--fg-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
