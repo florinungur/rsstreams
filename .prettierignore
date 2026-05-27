@@ -1,0 +1,10 @@
+# Files committed to git that must NOT be reformatted by oxfmt. Everything
+# in `.gitignore` is already skipped (oxfmt reads `.gitignore` + this file by
+# default), so only add tracked files here.
+
+# Captured YouTube HTML fixtures – kept verbatim so unit tests assert against
+# the real DOM shape.
+test/fixtures/*.html
+
+# pnpm lockfile – managed by pnpm; reformatting would churn it on every run.
+pnpm-lock.yaml

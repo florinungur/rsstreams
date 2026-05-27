@@ -50,11 +50,19 @@ export function renderFeedList(
         container.appendChild(buildGroup(systemRows, options));
     }
     if (playlistRows.length > 0) {
-        const heading = document.createElement("h2");
-        heading.className = "feed-list__heading";
-        heading.textContent = "Playlists";
-        container.appendChild(heading);
-        container.appendChild(buildGroup(playlistRows, options));
+        // <details> gives us native keyboard + accessibility support for the
+        // collapse toggle. Default is closed (no `open` attribute) – channels
+        // can have 20+ playlists and most users want the 4 system feeds first.
+        const details = document.createElement("details");
+        details.className = "feed-list__playlists";
+
+        const summary = document.createElement("summary");
+        summary.className = "feed-list__heading";
+        summary.textContent = `Playlists (${playlistRows.length})`;
+        details.appendChild(summary);
+
+        details.appendChild(buildGroup(playlistRows, options));
+        container.appendChild(details);
     }
 }
 

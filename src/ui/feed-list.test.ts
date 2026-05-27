@@ -93,34 +93,51 @@ describe("renderFeedList", () => {
         expect(container.querySelectorAll(".feed-list__group")).toHaveLength(1);
     });
 
-    it("renders a Playlists heading between system rows and playlist rows", () => {
+    it("wraps playlist rows in a collapsed <details> with a counted summary", () => {
         renderFeedList(
             container,
-            [uploadsRow(), shortsRow(), playlistRow("Retro Tech", "PLretro")],
+            [
+                uploadsRow(),
+                shortsRow(),
+                playlistRow("Retro Tech", "PLretro"),
+                playlistRow("Reviews!", "PLreviews"),
+            ],
             { copy: vi.fn().mockResolvedValue(undefined) },
         );
 
         const groups = container.querySelectorAll<HTMLUListElement>(".feed-list__group");
         expect(groups).toHaveLength(2);
         expect(groups[0]?.querySelectorAll(".feed-row")).toHaveLength(2);
-        expect(groups[1]?.querySelectorAll(".feed-row")).toHaveLength(1);
+        expect(groups[1]?.querySelectorAll(".feed-row")).toHaveLength(2);
 
-        const heading = container.querySelector(".feed-list__heading");
-        expect(heading?.tagName).toBe("H2");
-        expect(heading?.textContent).toBe("Playlists");
+        const details = container.querySelector<HTMLDetailsElement>(".feed-list__playlists");
+        expect(details).not.toBeNull();
+        // Default closed – playlist channels can have 20+ entries; users want
+        // the 4 system feeds visible first.
+        expect(details?.open).toBe(false);
 
-        // The heading must sit between the two groups, not before or after both.
-        expect(groups[0]?.nextElementSibling).toBe(heading);
-        expect(heading?.nextElementSibling).toBe(groups[1]);
+        const summary = details?.querySelector("summary.feed-list__heading");
+        expect(summary?.tagName).toBe("SUMMARY");
+        expect(summary?.textContent).toBe("Playlists (2)");
+
+        // Details should sit after the system-rows group.
+        expect(groups[0]?.nextElementSibling).toBe(details);
+        // Playlist group sits inside the details element.
+        expect(details?.contains(groups[1] as Element)).toBe(true);
     });
 
-    it("renders only a Playlists heading + group when no system rows are present", () => {
+    it("renders only a collapsed Playlists <details> when no system rows are present", () => {
         renderFeedList(container, [playlistRow("Solo playlist", "PLsolo")], {
             copy: vi.fn().mockResolvedValue(undefined),
         });
         const groups = container.querySelectorAll(".feed-list__group");
         expect(groups).toHaveLength(1);
-        expect(container.querySelector(".feed-list__heading")).not.toBeNull();
+        const details = container.querySelector<HTMLDetailsElement>(".feed-list__playlists");
+        expect(details).not.toBeNull();
+        expect(details?.open).toBe(false);
+        expect(details?.querySelector("summary.feed-list__heading")?.textContent).toBe(
+            "Playlists (1)",
+        );
         expect(groups[0]?.querySelectorAll(".feed-row")).toHaveLength(1);
     });
 
