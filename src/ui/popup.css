@@ -1,16 +1,145 @@
-/* Phase 1 baseline – Phase 3 expands with row layout, copy-flash state,
-   and prefers-color-scheme dark variants. */
+/* Phase 3 popup styling: row layout, copy-button flash states, dark-mode
+   variants via `prefers-color-scheme`. Kept system-font + minimal so Firefox's
+   default look bleeds through. */
+
 :root {
     color-scheme: light dark;
+
+    /* Light tokens (default). Overridden in the dark block below. */
+    --bg: #ffffff;
+    --fg: #0c0c0d;
+    --fg-muted: #5b5b66;
+    --row-bg: #f4f4f6;
+    --row-bg-hover: #e8e8ed;
+    --button-bg: #0060df;
+    --button-fg: #ffffff;
+    --button-bg-hover: #003eaa;
+    --button-bg-success: #058b00;
+    --button-bg-error: #c50042;
+    --url-fg: #45a1ff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #1c1b22;
+        --fg: #fbfbfe;
+        --fg-muted: #b1b1b3;
+        --row-bg: #2b2a33;
+        --row-bg-hover: #38373f;
+        --button-bg: #00ddff;
+        --button-fg: #0c0c0d;
+        --button-bg-hover: #80ebff;
+        --button-bg-success: #54ffbd;
+        --button-bg-error: #ff9aa2;
+        --url-fg: #80ebff;
+    }
 }
 
 body {
     margin: 0;
     padding: 12px;
-    min-width: 320px;
+    min-width: 360px;
+    background: var(--bg);
+    color: var(--fg);
     font-family:
         system-ui,
         -apple-system,
         sans-serif;
     font-size: 14px;
+    line-height: 1.4;
+}
+
+.feed-list__group {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.feed-list__heading {
+    margin: 14px 4px 6px;
+    padding: 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.feed-list__heading::before,
+.feed-list__heading::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: currentcolor;
+    opacity: 0.4;
+}
+
+.feed-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "label button"
+        "url button";
+    gap: 2px 12px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--row-bg);
+    border-radius: 6px;
+}
+
+.feed-row:hover {
+    background: var(--row-bg-hover);
+}
+
+.feed-row__label {
+    grid-area: label;
+    font-weight: 600;
+}
+
+.feed-row__url {
+    grid-area: url;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--url-fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.feed-row__copy {
+    grid-area: button;
+    align-self: center;
+    min-width: 72px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    background: var(--button-bg);
+    color: var(--button-fg);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease;
+}
+
+.feed-row__copy:hover:not(:disabled) {
+    background: var(--button-bg-hover);
+}
+
+.feed-row__copy:disabled {
+    cursor: default;
+}
+
+.feed-row__copy--success {
+    background: var(--button-bg-success);
+}
+
+.feed-row__copy--error {
+    background: var(--button-bg-error);
 }
