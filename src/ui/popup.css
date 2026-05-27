@@ -1,5 +1,5 @@
-/* Phase 3 popup styling: row layout, copy-button flash states, dark-mode
-   variants via `prefers-color-scheme`. Kept system-font + minimal so Firefox's
+/* Popup styling: row layout, copy-button flash states, dark-mode variants
+   via `prefers-color-scheme`. Kept system-font + minimal so Firefox's
    default look bleeds through. */
 
 :root {
@@ -58,6 +58,10 @@ body {
     gap: 6px;
 }
 
+.feed-list__playlists {
+    margin: 0;
+}
+
 .feed-list__heading {
     margin: 14px 4px 6px;
     padding: 0;
@@ -69,15 +73,37 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+    cursor: pointer;
+    list-style: none;
 }
 
-.feed-list__heading::before,
+/* Hide the default disclosure triangle in WebKit; the chevron below replaces it. */
+.feed-list__heading::-webkit-details-marker {
+    display: none;
+}
+
+.feed-list__heading::before {
+    content: "▸";
+    flex: 0 0 auto;
+    font-size: 10px;
+    transition: transform 120ms ease;
+    transform-origin: center;
+}
+
 .feed-list__heading::after {
     content: "";
     flex: 1;
     height: 1px;
     background: currentcolor;
     opacity: 0.4;
+}
+
+.feed-list__playlists[open] > .feed-list__heading::before {
+    transform: rotate(90deg);
+}
+
+.feed-list__playlists[open] > .feed-list__group {
+    margin-top: 6px;
 }
 
 .feed-row {
@@ -142,4 +168,12 @@ body {
 
 .feed-row__copy--error {
     background: var(--button-bg-error);
+}
+
+.feed-list__empty {
+    margin: 0;
+    padding: 16px 12px;
+    color: var(--fg-muted);
+    font-size: 13px;
+    line-height: 1.5;
 }
