@@ -20,6 +20,11 @@ const ERROR_CLASS = "feed-row__copy--error";
 
 /**
  * Render the feed list into `container`, replacing any existing children.
+ * Rows are split into two groups: the 4 system feeds (uploads / long-form /
+ * shorts / live) and the named playlists. A "Playlists" heading is rendered
+ * between them when at least one playlist row is present, so the visual
+ * grouping mirrors the 4 + N structure already in `FeedRow[]`.
+ *
  * Each row shows the label, the feed URL, and a "Copy" button that calls
  * `options.copy` with the URL and flashes "Copied" / "Copy failed" before
  * resetting after `options.flashMs` (default 1500ms).
@@ -31,14 +36,35 @@ export function renderFeedList(
 ): void {
     container.replaceChildren();
 
-    const list = document.createElement("ul");
-    list.className = "feed-list";
-
+    const systemRows: FeedRow[] = [];
+    const playlistRows: FeedRow[] = [];
     for (const row of rows) {
-        list.appendChild(buildRow(row, options));
+        if (row.variant === "playlist") {
+            playlistRows.push(row);
+        } else {
+            systemRows.push(row);
+        }
     }
 
-    container.appendChild(list);
+    if (systemRows.length > 0) {
+        container.appendChild(buildGroup(systemRows, options));
+    }
+    if (playlistRows.length > 0) {
+        const heading = document.createElement("h2");
+        heading.className = "feed-list__heading";
+        heading.textContent = "Playlists";
+        container.appendChild(heading);
+        container.appendChild(buildGroup(playlistRows, options));
+    }
+}
+
+function buildGroup(rows: FeedRow[], options: FeedListOptions): HTMLUListElement {
+    const ul = document.createElement("ul");
+    ul.className = "feed-list__group";
+    for (const row of rows) {
+        ul.appendChild(buildRow(row, options));
+    }
+    return ul;
 }
 
 function buildRow(row: FeedRow, options: FeedListOptions): HTMLLIElement {

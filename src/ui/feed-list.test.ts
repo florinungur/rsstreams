@@ -22,6 +22,15 @@ function shortsRow(): FeedRow {
     };
 }
 
+function playlistRow(name = "Retro Tech", listId = "PLretro"): FeedRow {
+    return {
+        label: name,
+        url: new URL(`https://www.youtube.com/feeds/videos.xml?playlist_id=${listId}`),
+        variant: "playlist",
+        playlistId: listId,
+    };
+}
+
 // Drain queued microtasks (e.g. the awaited `options.copy(...)` Promise inside
 // the click handler) without advancing fake timers.
 async function flushMicrotasks(): Promise<void> {
@@ -71,9 +80,48 @@ describe("renderFeedList", () => {
         expect(container.querySelectorAll(".feed-row")).toHaveLength(1);
     });
 
-    it("renders an empty list when given zero rows", () => {
+    it("renders nothing when given zero rows", () => {
         renderFeedList(container, [], { copy: vi.fn().mockResolvedValue(undefined) });
-        expect(container.querySelector(".feed-list")?.children).toHaveLength(0);
+        expect(container.children).toHaveLength(0);
+    });
+
+    it("omits the Playlists heading when no playlist rows are present", () => {
+        renderFeedList(container, [uploadsRow(), shortsRow()], {
+            copy: vi.fn().mockResolvedValue(undefined),
+        });
+        expect(container.querySelector(".feed-list__heading")).toBeNull();
+        expect(container.querySelectorAll(".feed-list__group")).toHaveLength(1);
+    });
+
+    it("renders a Playlists heading between system rows and playlist rows", () => {
+        renderFeedList(
+            container,
+            [uploadsRow(), shortsRow(), playlistRow("Retro Tech", "PLretro")],
+            { copy: vi.fn().mockResolvedValue(undefined) },
+        );
+
+        const groups = container.querySelectorAll<HTMLUListElement>(".feed-list__group");
+        expect(groups).toHaveLength(2);
+        expect(groups[0]?.querySelectorAll(".feed-row")).toHaveLength(2);
+        expect(groups[1]?.querySelectorAll(".feed-row")).toHaveLength(1);
+
+        const heading = container.querySelector(".feed-list__heading");
+        expect(heading?.tagName).toBe("H2");
+        expect(heading?.textContent).toBe("Playlists");
+
+        // The heading must sit between the two groups, not before or after both.
+        expect(groups[0]?.nextElementSibling).toBe(heading);
+        expect(heading?.nextElementSibling).toBe(groups[1]);
+    });
+
+    it("renders only a Playlists heading + group when no system rows are present", () => {
+        renderFeedList(container, [playlistRow("Solo playlist", "PLsolo")], {
+            copy: vi.fn().mockResolvedValue(undefined),
+        });
+        const groups = container.querySelectorAll(".feed-list__group");
+        expect(groups).toHaveLength(1);
+        expect(container.querySelector(".feed-list__heading")).not.toBeNull();
+        expect(groups[0]?.querySelectorAll(".feed-row")).toHaveLength(1);
     });
 
     it("calls copy with the row URL on click, flashes 'Copied', then resets after flashMs", async () => {
