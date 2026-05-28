@@ -8,5 +8,6 @@
         "moduleResolution": "bundler",
         "noEmit": true,
         "types": ["firefox-webext-browser", "vitest/globals"]
-    }
+    },
+    "exclude": ["e2e", ".output"]
 }

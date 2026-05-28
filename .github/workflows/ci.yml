@@ -71,3 +71,44 @@ jobs:
 
       - name: web-ext lint
         run: pnpm dlx web-ext lint --source-dir .output/firefox-mv3
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.3.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate WXT types
+        run: pnpm wxt:prepare
+
+      - name: Type check e2e
+        run: pnpm compile:e2e
+
+      - name: Install Firefox
+        id: firefox
+        uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: latest
+
+      # Builds the --mode e2e variant, then drives stock Firefox headlessly via
+      # Selenium (Selenium Manager auto-resolves geckodriver). No xvfb needed –
+      # headless Firefox runs without a display server.
+      - name: E2E (Selenium + stock Firefox)
+        run: pnpm e2e
+        env:
+          FIREFOX_BINARY: ${{ steps.firefox.outputs.firefox-path }}
