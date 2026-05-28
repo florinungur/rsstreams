@@ -1,0 +1,63 @@
+name: Selector canary
+
+# Nightly probe that re-fetches live YouTube and checks the ytInitialData parser
+# + DOM selector chain still resolve a channel. When YouTube ships a layout
+# change, this goes red and files a single tracking issue – early warning before
+# users hit an empty popup. See test/selector-canary.ts.
+
+on:
+  schedule:
+    # 06:00 UTC daily.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: selector-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.3.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run selector canary
+        run: pnpm test:canary
+
+      - name: File an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create selector-canary \
+            --color FBCA04 \
+            --description "Nightly canary detected YouTube layout drift" \
+            --force
+          existing=$(gh issue list --label selector-canary --state open --json number --jq 'length')
+          if [ "$existing" = "0" ]; then
+            gh issue create \
+              --title "Selector canary failing: YouTube layout may have changed" \
+              --label selector-canary \
+              --body "Nightly selector canary failed; YouTube likely changed its layout and broke the ytInitialData parser or the DOM selector chain. Run: ${RUN_URL} - re-capture fixtures (test/fixtures/README.md) and widen selectors (src/lib/selectors.ts) or JSON paths (src/lib/parse-channel-info.ts) as needed."
+          else
+            echo "An open selector-canary issue already exists; not filing a duplicate."
+          fi

@@ -57,13 +57,32 @@ function renderEmpty(container: HTMLElement): void {
 }
 
 /**
- * Inject `extract-channel.js` into the active YouTube tab and return the
+ * Read a `?tabId=N` override from the popup URL. Returns the parsed tab id, or
+ * `undefined` when the param is absent or malformed. The override lets the
+ * Selenium E2E suite (and manual debugging) point the popup at a specific tab,
+ * since a popup opened as a `moz-extension://…/popup.html` page can't rely on
+ * `tabs.query({ active: true })` resolving to the underlying YouTube tab.
+ */
+function tabIdOverride(): number | undefined {
+    const raw = new URLSearchParams(location.search).get("tabId");
+    if (raw === null) return undefined;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+/**
+ * Inject `extract-channel.js` into the target YouTube tab and return the
  * parsed `ChannelInfo`, or `null` when the page isn't a recognised YouTube
- * URL / the script fails to inject.
+ * URL / the script fails to inject. Targets the `?tabId=` override when
+ * present, else the active tab in the current window.
  */
 export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo | null> {
-    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    const tabId = tabs[0]?.id;
+    const override = tabIdOverride();
+    let tabId = override;
+    if (override === undefined) {
+        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+        tabId = tabs[0]?.id;
+    }
     if (tabId === undefined) return null;
 
     const results = await browser.scripting.executeScript({

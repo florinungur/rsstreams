@@ -4,11 +4,20 @@ import { defineConfig } from "wxt";
 export default defineConfig({
     srcDir: "src",
     manifestVersion: 3,
-    manifest: {
+    manifest: ({ mode }) => ({
         name: "RSStreams for YouTube",
         description: "Find every RSS/Atom feed for the YouTube page you're on.",
         permissions: ["scripting", "clipboardWrite"],
-        host_permissions: ["https://www.youtube.com/*"],
+        // Production ships youtube.com only. `wxt build --mode e2e` additionally
+        // grants 127.0.0.1 so the Selenium suite can inject `extract-channel.js`
+        // into a locally-served fixture page (executeScript needs a host-permission
+        // match). The widened build lands in `.output/firefox-mv3-e2e/` and is
+        // for tests only – never submitted to AMO. The Phase 6 release build runs
+        // the default (production) mode and stays youtube.com-only.
+        host_permissions:
+            mode === "e2e"
+                ? ["https://www.youtube.com/*", "http://127.0.0.1/*"]
+                : ["https://www.youtube.com/*"],
         browser_specific_settings: {
             gecko: {
                 id: "rsstreams@florinungur.com",
@@ -25,5 +34,5 @@ export default defineConfig({
         action: {
             default_title: "Show feeds for this page",
         },
-    },
+    }),
 });

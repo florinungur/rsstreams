@@ -230,3 +230,58 @@ describe("fetchChannelInfoFromActiveTab", () => {
         expect(await fetchChannelInfoFromActiveTab()).toBeNull();
     });
 });
+
+describe("fetchChannelInfoFromActiveTab – ?tabId override", () => {
+    let mockBrowser: MockBrowser;
+
+    beforeEach(() => {
+        mockBrowser = installBrowserMock();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        window.history.replaceState(null, "", "/");
+    });
+
+    it("targets the ?tabId tab directly without querying the active tab", async () => {
+        window.history.replaceState(null, "", "/popup.html?tabId=7");
+        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+
+        const info = await fetchChannelInfoFromActiveTab();
+
+        expect(info).toEqual(VALID_INFO);
+        expect(mockBrowser.tabs.query).not.toHaveBeenCalled();
+        expect(mockBrowser.scripting.executeScript).toHaveBeenCalledWith({
+            target: { tabId: 7 },
+            files: ["extract-channel.js"],
+        });
+    });
+
+    it("ignores a non-numeric tabId and falls back to the active tab", async () => {
+        window.history.replaceState(null, "", "/popup.html?tabId=abc");
+        mockBrowser.tabs.query.mockResolvedValue([{ id: 99 }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+
+        await fetchChannelInfoFromActiveTab();
+
+        expect(mockBrowser.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
+        expect(mockBrowser.scripting.executeScript).toHaveBeenCalledWith({
+            target: { tabId: 99 },
+            files: ["extract-channel.js"],
+        });
+    });
+
+    it("ignores a negative tabId and falls back to the active tab", async () => {
+        window.history.replaceState(null, "", "/popup.html?tabId=-3");
+        mockBrowser.tabs.query.mockResolvedValue([{ id: 99 }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+
+        await fetchChannelInfoFromActiveTab();
+
+        expect(mockBrowser.tabs.query).toHaveBeenCalled();
+        expect(mockBrowser.scripting.executeScript).toHaveBeenCalledWith({
+            target: { tabId: 99 },
+            files: ["extract-channel.js"],
+        });
+    });
+});
