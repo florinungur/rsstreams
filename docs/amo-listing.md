@@ -27,31 +27,41 @@ Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Kee
 
 > Click the icon on any YouTube page to copy RSS/Atom feed URLs: channel uploads, long-form videos only, Shorts only, Live only, or any named playlist.
 
-## Description (≤ 15000 chars)
+## Description (≤ 15000 chars; AMO markdown — bold, italic, links, lists, blockquote, no headings)
 
-> RSStreams finds every RSS/Atom feed reachable from the YouTube page you're on and lets you copy the one you want with a click.
+> **RSStreams finds every RSS/Atom feed reachable from the YouTube page you're on, and copies the one you want with a click.**
 >
 > YouTube still publishes RSS feeds, but it hides most of them. The default channel feed mixes in every Short. The long-form-only, Shorts-only, and Live-only feeds exist but aren't linked anywhere, and per-playlist feeds need a hand-built URL. RSStreams surfaces all of them.
 >
+> **What you get**
+>
 > Open any channel, handle, video, or playlist page, click the toolbar icon, and the popup lists:
 >
-> - All uploads (the channel's default feed)
-> - Videos, long-form only – no Shorts
-> - Shorts only
-> - Live only
-> - One row per public playlist on the channel
+> - **All uploads** – the channel's default feed
+> - **Videos (long-form only)** – no Shorts
+> - **Shorts only**
+> - **Live only**
+> - **One row per public playlist** on the channel
 >
-> Each row has a Copy button. Paste the URL into your feed reader and you're subscribed – no Google account, no leaving YouTube, no pasting URLs into a separate web tool.
+> Each row has a **Copy** button. Paste the URL into your feed reader and you're subscribed – no Google account, no leaving YouTube, no pasting URLs into a separate web tool.
 >
-> Why long-form-only matters: subscribing to a channel's default RSS feed pulls every Short alongside real videos. The long-form feed fixes that, but YouTube doesn't show it to you. RSStreams does.
+> **Why long-form-only matters**
 >
-> Privacy: RSStreams collects nothing, has no analytics, and contains no remote code. It reads a YouTube page only when you click the icon, and the only network request it makes is to YouTube itself, to list a channel's public playlists. Nothing is sent to me or any third party. Full policy: https://github.com/florinungur/rsstreams/blob/main/PRIVACY.md
+> Subscribing to a channel's default RSS feed pulls every Short alongside real videos. The long-form feed fixes that, but YouTube doesn't show it to you. RSStreams does.
 >
-> Permissions: access to youtube.com (it only works there), reading the page when you click the icon (scripting), and clipboard write (to copy a URL). Nothing else.
+> **Privacy**
 >
-> Open source under the MIT license: https://github.com/florinungur/rsstreams
+> RSStreams collects nothing, has no analytics, and contains no remote code. It reads a YouTube page only when you click the icon, and the only network request it makes is to YouTube itself, to list a channel's public playlists. Nothing is sent to me or any third party. Full policy: [PRIVACY.md](https://github.com/florinungur/rsstreams/blob/main/PRIVACY.md)
 >
-> Credit: inspired by teddy-gustiaux/youtube-rss-finder. RSStreams is a clean-room rewrite for Manifest V3 with a multi-feed picker; no code is copied.
+> **Permissions**
+>
+> Access to youtube.com (it only works there), reading the page when you click the icon (scripting), and clipboard write (to copy a URL). Nothing else.
+>
+> **Open source**
+>
+> MIT licensed: [github.com/florinungur/rsstreams](https://github.com/florinungur/rsstreams)
+>
+> Credit: inspired by [teddy-gustiaux/youtube-rss-finder](https://github.com/teddy-gustiaux/youtube-rss-finder). RSStreams is a clean-room rewrite for Manifest V3 with a multi-feed picker; no code is copied.
 
 ## Data collection (AMO structured disclosure)
 
