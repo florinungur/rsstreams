@@ -39,6 +39,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The root tsconfig.json extends ./.wxt/tsconfig.json, which only exists
+      # after `wxt prepare`. Without it the oxc transform aborts before any test
+      # runs (Tsconfig not found). The build and e2e jobs do the same.
+      - name: Generate WXT types
+        run: pnpm wxt:prepare
+
       - name: Run selector canary
         run: pnpm test:canary
 
