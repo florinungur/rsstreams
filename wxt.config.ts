@@ -35,4 +35,10 @@ export default defineConfig({
             default_title: "Show feeds for this page",
         },
     }),
+    // The AMO source submission (`wxt zip`) excludes node_modules, dotfiles, and
+    // .output by default. `coverage/` is generated test output and isn't needed
+    // to reproduce the build – keep it out of the sources zip.
+    zip: {
+        excludeSources: ["coverage/**"],
+    },
 });

@@ -1,0 +1,80 @@
+name: Release
+
+# Signs and submits a new LISTED version to AMO. This is for versions AFTER the
+# initial listing has been created and approved through the AMO Developer Hub.
+#
+# It does NOT trigger on tag push, so tagging v0.1.0 for the first (manual,
+# Hub-based) submission won't fire it. Trigger it by publishing a GitHub Release
+# (or manually via "Run workflow") once these repository secrets exist:
+#   AMO_JWT_ISSUER  – AMO API key    (JWT issuer)
+#   AMO_JWT_SECRET  – AMO API secret (JWT secret)
+# Create the credentials at https://addons.mozilla.org/developers/addon/api/key/
+# and add them with:  gh secret set AMO_JWT_ISSUER  --repo florinungur/rsstreams
+#                     gh secret set AMO_JWT_SECRET --repo florinungur/rsstreams
+#
+# Each run must carry a new version: bump `version` in package.json (WXT copies
+# it into the manifest) before publishing the release.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.3.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate WXT types
+        run: pnpm wxt:prepare
+
+      - name: Build + zip (extension + sources)
+        run: pnpm zip
+
+      - name: Sign + submit to AMO (listed)
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$AMO_JWT_ISSUER" ] || [ -z "$AMO_JWT_SECRET" ]; then
+            echo "::error::AMO_JWT_ISSUER / AMO_JWT_SECRET secrets are not set. See the header of this workflow." >&2
+            exit 1
+          fi
+          SOURCES=$(ls .output/*-sources.zip)
+          pnpm dlx web-ext sign \
+            --channel listed \
+            --source-dir .output/firefox-mv3 \
+            --artifacts-dir .output/web-ext-artifacts \
+            --upload-source-code "$SOURCES" \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET"
+
+      - name: Upload signed XPI
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-xpi
+          path: .output/web-ext-artifacts/*.xpi
+          if-no-files-found: ignore
