@@ -16,6 +16,10 @@ This extension shows all of them in a popup. Click the toolbar icon on any `yout
 
 Not yet published on AMO.
 
+## Privacy
+
+RSStreams collects nothing, sends nothing to me, and has no analytics or remote code. It reads a YouTube page only when you click the icon, and the only network request it triggers is to YouTube itself (to list a channel's public playlists). See [PRIVACY.md](PRIVACY.md).
+
 ## Status
 
 Pre-release. Repo bootstrap, pure modules, popup UI, content-script scraping, and E2E + a nightly selector canary are done. AMO submission (icons, screenshots, listing) is the remaining phase.

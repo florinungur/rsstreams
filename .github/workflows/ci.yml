@@ -72,6 +72,9 @@ jobs:
       - name: web-ext lint
         run: pnpm dlx web-ext lint --source-dir .output/firefox-mv3
 
+      - name: Check AMO listing metadata in sync
+        run: pnpm check:listing
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
