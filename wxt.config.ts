@@ -39,6 +39,9 @@ export default defineConfig({
     // .output by default. `coverage/` is generated test output and isn't needed
     // to reproduce the build – keep it out of the sources zip.
     zip: {
-        excludeSources: ["coverage/**"],
+        // coverage/ is generated test output; docs/screenshots/ are AMO listing
+        // images. Neither is needed to reproduce the build – keep both out of
+        // the sources zip so the source submission stays code-only and small.
+        excludeSources: ["coverage/**", "docs/screenshots/**"],
     },
 });

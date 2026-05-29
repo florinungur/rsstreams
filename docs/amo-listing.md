@@ -80,10 +80,15 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 
 Required (we use a bundler). Upload `.output/rsstreams-0.1.0-sources.zip` (produced by `pnpm zip`). It contains the full source, `package.json`, `pnpm-lock.yaml`, and `wxt.config.ts`; it excludes `node_modules`, `.output`, `coverage`, and dotfiles.
 
-## Screenshots (1280×800, ~1.6:1)
+## Screenshots
 
-1. Popup open on `/@MKBHD` showing the 4 system rows + the Playlists section.
-2. Popup open on a `/watch?v=…` page (cross-page support).
-3. Mid-copy: the "Copied" flash on a button.
-4. Popup open on `/playlist?list=…`.
-5. Optional: dark-mode popup.
+Committed in `docs/screenshots/` (2784×1930, ~1.44:1, dark mode). Upload in this order:
+
+1. `01-channel-home.png` – popup on `/@mkbhd`: 4 system rows, Playlists (23) collapsed.
+2. `02-channel-home-playlists.png` – same page, Playlists expanded.
+3. `03-channel-videos-tab.png` – popup on the channel's Videos tab (works on any sub-page).
+4. `04-playlist-page.png` – popup on a `/playlist?list=…` page.
+5. `05-watch-page.png` – popup on a `/watch?v=…` page (channel resolved from the video).
+6. `06-watch-page-playlists.png` – same watch page, Playlists expanded.
+7. `07-watch-other-channel.png` – popup on a different channel's video (Rick Astley), Playlists (13).
+8. `08-watch-other-channel-playlists.png` – same, Playlists expanded.
