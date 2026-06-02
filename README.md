@@ -14,7 +14,7 @@ This extension shows all of them in a popup. Click the toolbar icon on any `yout
 
 ## Install
 
-Not yet published on AMO.
+Install from [Firefox Add-ons](https://addons.mozilla.org/addon/rsstreams-for-youtube/).
 
 ## Privacy
 
@@ -22,7 +22,7 @@ RSStreams collects nothing, sends nothing to me, and has no analytics or remote 
 
 ## Status
 
-Pre-release. Repo bootstrap, pure modules, popup UI, content-script scraping, and E2E + a nightly selector canary are done. AMO submission (icons, screenshots, listing) is the remaining phase.
+v0.1.0 is live on AMO (auto-approved 2026-06-02; first listed release).
 
 ## Development
 
