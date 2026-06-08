@@ -222,21 +222,31 @@ function parseFromDom(doc: Document): ChannelInfo | null {
 }
 
 /**
- * Resolve once the document reaches `readyState === "complete"`. YouTube
- * emits the inline `<script>var ytInitialData = ` blob near the end of the
- * body, so a popup click during the late streaming window can read a document
- * that's missing the channel state entirely. Awaiting `complete` closes that
- * race; the SPA-stale case is handled separately by `resolveChannelInfo`.
+ * Resolve once the document reaches `readyState === "complete"`, or after
+ * `timeoutMs` if it never does. YouTube emits the inline `<script>var
+ * ytInitialData = ` blob near the end of the body, so a popup click during
+ * the late streaming window can read a document that's missing the channel
+ * state entirely. Awaiting `complete` closes that race; the timeout keeps a
+ * stalled document from hanging the popup, since `resolveChannelInfo`'s
+ * fetch fallback can still recover the data.
  */
-export function whenDocumentReady(doc: Document): Promise<void> {
+export function whenDocumentReady(doc: Document, timeoutMs = 2000): Promise<void> {
     if (doc.readyState === "complete") return Promise.resolve();
     return new Promise<void>((resolve) => {
+        const cleanup = (): void => {
+            clearTimeout(timer);
+            doc.removeEventListener("readystatechange", onChange);
+        };
         const onChange = (): void => {
             if (doc.readyState === "complete") {
-                doc.removeEventListener("readystatechange", onChange);
+                cleanup();
                 resolve();
             }
         };
+        const timer = setTimeout(() => {
+            cleanup();
+            resolve();
+        }, timeoutMs);
         doc.addEventListener("readystatechange", onChange);
     });
 }

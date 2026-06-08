@@ -46,12 +46,14 @@ export async function boot(container: HTMLElement, options: BootOptions): Promis
 const ISSUES_URL = "https://github.com/florinungur/rsstreams/issues";
 const REPORT_EMAIL = "florin@florinungur.com";
 
-function makeLink(href: string, text: string): HTMLAnchorElement {
+type SafeHref = `https://${string}` | `mailto:${string}`;
+
+function makeLink(href: SafeHref, text: string): HTMLAnchorElement {
     const a = document.createElement("a");
     a.className = "feed-list__empty-link";
     a.href = href;
     a.textContent = text;
-    if (/^https?:/i.test(href)) {
+    if (href.startsWith("https://")) {
         a.target = "_blank";
         a.rel = "noopener noreferrer";
     }

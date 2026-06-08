@@ -46,8 +46,18 @@ async function fetchPlaylistsTab(channelId: string): Promise<unknown> {
     return extractYtInitialData(doc);
 }
 
+// `redirect: "follow"` (the default) is intentional: YouTube redirects
+// region-blocked or consent-required pages to `consent.youtube.com`, which is
+// a different host and so the cross-origin response is unreadable here. The
+// resulting fetch failure surfaces as `null` via the catch in
+// `resolveChannelInfo`, which is the correct empty-state outcome. The 3s
+// timeout keeps a stalled YouTube response from hanging the popup; the abort
+// throws and is caught the same way.
 async function fetchCurrentPage(): Promise<string | null> {
-    const response = await fetch(location.href, { credentials: "same-origin" });
+    const response = await fetch(location.href, {
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(3000),
+    });
     if (!response.ok) return null;
     return response.text();
 }

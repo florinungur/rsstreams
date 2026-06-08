@@ -925,6 +925,16 @@ describe("whenDocumentReady", () => {
 
         await expect(promise).resolves.toBeUndefined();
     });
+
+    it("resolves after the timeout when the document never reaches complete", async () => {
+        const doc = new DOMParser().parseFromString("<html></html>", "text/html");
+        Object.defineProperty(doc, "readyState", { configurable: true, get: () => "loading" });
+
+        const start = Date.now();
+        await expect(whenDocumentReady(doc, 5)).resolves.toBeUndefined();
+        // Loose bound; the assertion is "didn't hang", not "exact timing".
+        expect(Date.now() - start).toBeLessThan(500);
+    });
 });
 
 describe("resolveChannelInfo", () => {
