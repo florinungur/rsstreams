@@ -1,9 +1,12 @@
 // Pure parser: { ytInitialData, document } → ChannelInfo | null.
 //
-// Tries ytInitialData first (more structured, stable across YouTube SPA
-// navigation) and falls back to DOM microdata when JSON parse fails or fields
-// are missing. The nightly selector-canary workflow re-runs the chain against
-// live HTML so layout changes surface before users hit them.
+// Tries ytInitialData first and falls back to DOM microdata when JSON parse
+// fails or fields are missing. YouTube's SPA navigation does NOT refresh the
+// inline `<script>var ytInitialData = ` blob, so `resolveChannelInfo` below
+// composes the local parse with a same-origin fetch of the current URL to
+// recover authoritative state when the live page reads as stale. The nightly
+// selector-canary workflow re-runs the chain against live HTML so layout
+// changes surface before users hit them.
 
 import type { ChannelInfo, NamedPlaylist } from "./feed-builder";
 import { extractDomChannel, extractDomTitle } from "./selectors";
@@ -216,6 +219,64 @@ function parseFromDom(doc: Document): ChannelInfo | null {
     const channelTitle = extractDomTitle(doc);
     if (!channelId || !channelTitle) return null;
     return { channelId, channelTitle, playlists: [] };
+}
+
+/**
+ * Resolve once the document reaches `readyState === "complete"`. YouTube
+ * emits the inline `<script>var ytInitialData = ` blob near the end of the
+ * body, so a popup click during the late streaming window can read a document
+ * that's missing the channel state entirely. Awaiting `complete` closes that
+ * race; the SPA-stale case is handled separately by `resolveChannelInfo`.
+ */
+export function whenDocumentReady(doc: Document): Promise<void> {
+    if (doc.readyState === "complete") return Promise.resolve();
+    return new Promise<void>((resolve) => {
+        const onChange = (): void => {
+            if (doc.readyState === "complete") {
+                doc.removeEventListener("readystatechange", onChange);
+                resolve();
+            }
+        };
+        doc.addEventListener("readystatechange", onChange);
+    });
+}
+
+export interface ResolveChannelInfoDeps {
+    /** Snapshot of `ytInitialData` from the live page (window/wrappedJSObject/inline-script). */
+    initialYtInitialData: unknown;
+    /** Live document used for DOM-microdata fallback. */
+    document: Document;
+    /** Returns the HTML body of the current URL, or `null` if the fetch failed. */
+    fetchCurrentPage: () => Promise<string | null>;
+}
+
+/**
+ * Try the local document first; if it doesn't yield a `ChannelInfo`, do a
+ * same-origin fetch of the current URL and re-parse from the server-rendered
+ * HTML. The fetch path is the SPA-stale escape hatch: YouTube doesn't refresh
+ * the inline `<script>var ytInitialData = ` blob on client-side navigation,
+ * so the live document can lag the URL bar.
+ */
+export async function resolveChannelInfo(
+    deps: ResolveChannelInfoDeps,
+): Promise<ChannelInfo | null> {
+    const local = parseChannelInfo({
+        ytInitialData: deps.initialYtInitialData,
+        document: deps.document,
+    });
+    if (local) return local;
+
+    let html: string | null = null;
+    try {
+        html = await deps.fetchCurrentPage();
+    } catch {
+        return null;
+    }
+    if (html === null) return null;
+
+    const freshDoc = new DOMParser().parseFromString(html, "text/html");
+    const freshYtInitialData = extractYtInitialData(freshDoc);
+    return parseChannelInfo({ ytInitialData: freshYtInitialData, document: freshDoc });
 }
 
 /**

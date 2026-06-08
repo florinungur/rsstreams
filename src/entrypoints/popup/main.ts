@@ -43,16 +43,33 @@ export async function boot(container: HTMLElement, options: BootOptions): Promis
     }
 }
 
-const EMPTY_MESSAGE =
-    "Couldn't read this page. Open a YouTube channel, video, or playlist and try again. " +
-    "If you're already on YouTube, please report it at " +
-    "https://github.com/florinungur/rsstreams/issues.";
+const ISSUES_URL = "https://github.com/florinungur/rsstreams/issues";
+const REPORT_EMAIL = "florin@florinungur.com";
+
+function makeLink(href: string, text: string): HTMLAnchorElement {
+    const a = document.createElement("a");
+    a.className = "feed-list__empty-link";
+    a.href = href;
+    a.textContent = text;
+    if (/^https?:/i.test(href)) {
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+    }
+    return a;
+}
 
 function renderEmpty(container: HTMLElement): void {
     container.replaceChildren();
     const p = document.createElement("p");
     p.className = "feed-list__empty";
-    p.textContent = EMPTY_MESSAGE;
+    p.append(
+        "Couldn't read this page. Open a YouTube channel, video, or playlist and try again. ",
+        "If you're already on YouTube, please report it at ",
+    );
+    p.appendChild(makeLink(ISSUES_URL, ISSUES_URL));
+    p.append(" or email ");
+    p.appendChild(makeLink(`mailto:${REPORT_EMAIL}`, REPORT_EMAIL));
+    p.append(".");
     container.appendChild(p);
 }
 

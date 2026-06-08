@@ -5,25 +5,29 @@
 // manifest content-script registration with `matches`.
 //
 // Flow:
-//   1. Resolve `ytInitialData` from `window` (rare in the isolated world),
+//   1. Wait for `document.readyState === "complete"` so the inline
+//      `<script>var ytInitialData = ` blob has been parsed.
+//   2. Resolve `ytInitialData` from `window` (rare in the isolated world),
 //      `window.wrappedJSObject` (Firefox bridge), or the page's inline
 //      `<script>var ytInitialData = {…};</script>` tag via
 //      `extractYtInitialData(document)`.
-//   2. `parseChannelInfo` extracts channel ID + title (and any playlist
-//      shelves visible on the Home tab). Returns `null` for unknown pages.
-//   3. Fetch `/channel/<channelId>/playlists` (same-origin, no CORS) to get
+//   3. `resolveChannelInfo` runs `parseChannelInfo` against the live document
+//      and, if that yields nothing, refetches the current URL same-origin so
+//      a stale SPA snapshot doesn't masquerade as "not a YouTube page".
+//   4. Fetch `/channel/<channelId>/playlists` (same-origin, no CORS) to get
 //      the canonical playlist grid – the Home tab only shows a curated
 //      subset, and Videos / Shorts / Live / Posts tabs carry no playlists at
 //      all. The fetch is best-effort; on failure we fall back to whatever
-//      step 2 surfaced.
+//      step 3 surfaced.
 // `defineUnlistedScript`'s function return value becomes the script's last
 // expression, which `executeScript` surfaces on `InjectionResult.result`.
 
 import type { ChannelInfo } from "@/lib/feed-builder";
 import {
     extractYtInitialData,
-    parseChannelInfo,
     parsePlaylistsTab,
+    resolveChannelInfo,
+    whenDocumentReady,
 } from "@/lib/parse-channel-info";
 
 declare global {
@@ -42,13 +46,25 @@ async function fetchPlaylistsTab(channelId: string): Promise<unknown> {
     return extractYtInitialData(doc);
 }
 
+async function fetchCurrentPage(): Promise<string | null> {
+    const response = await fetch(location.href, { credentials: "same-origin" });
+    if (!response.ok) return null;
+    return response.text();
+}
+
 export default defineUnlistedScript(async (): Promise<ChannelInfo | null> => {
-    const ytInitialData =
+    await whenDocumentReady(document);
+
+    const initialYtInitialData =
         window.ytInitialData ??
         window.wrappedJSObject?.ytInitialData ??
         extractYtInitialData(document);
 
-    const info = parseChannelInfo({ ytInitialData, document });
+    const info = await resolveChannelInfo({
+        initialYtInitialData,
+        document,
+        fetchCurrentPage,
+    });
     if (!info) return null;
 
     try {
@@ -58,7 +74,7 @@ export default defineUnlistedScript(async (): Promise<ChannelInfo | null> => {
             return { ...info, playlists: fullPlaylists };
         }
     } catch {
-        // Best-effort: fall through to whatever the current page yielded.
+        // Best-effort: fall through to whatever step 3 surfaced.
     }
     return info;
 });

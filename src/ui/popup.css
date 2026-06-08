@@ -177,3 +177,13 @@ body {
     font-size: 13px;
     line-height: 1.5;
 }
+
+.feed-list__empty-link {
+    color: var(--url-fg);
+    overflow-wrap: anywhere;
+}
+
+.feed-list__empty-link:focus-visible {
+    outline: 2px solid var(--button-bg);
+    outline-offset: 2px;
+}
