@@ -75,6 +75,23 @@ describe("popup boot – async wiring", () => {
         const empty = container.querySelector(".feed-list__empty");
         expect(empty).not.toBeNull();
         expect(empty?.textContent).toContain("Couldn't read this page");
+
+        const links = empty?.querySelectorAll<HTMLAnchorElement>(".feed-list__empty-link");
+        expect(links?.length).toBe(2);
+
+        const issues = links?.[0];
+        expect(issues?.href).toBe("https://github.com/florinungur/rsstreams/issues");
+        expect(issues?.textContent).toBe("https://github.com/florinungur/rsstreams/issues");
+        expect(issues?.target).toBe("_blank");
+        expect(issues?.rel).toBe("noopener noreferrer");
+
+        const email = links?.[1];
+        expect(email?.href).toBe("mailto:florin@florinungur.com");
+        expect(email?.textContent).toBe("florin@florinungur.com");
+        // mailto: links must stay in the current frame so the user's mail
+        // client (or OS handler) opens; no target/rel.
+        expect(email?.target).toBe("");
+        expect(email?.rel).toBe("");
     });
 
     it("renders the empty-state message when fetchChannelInfo rejects", async () => {

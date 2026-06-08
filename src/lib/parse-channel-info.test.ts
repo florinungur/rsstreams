@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { extractYtInitialData, parseChannelInfo, parsePlaylistsTab } from "./parse-channel-info";
+import { describe, expect, it, vi } from "vitest";
+import {
+    extractYtInitialData,
+    parseChannelInfo,
+    parsePlaylistsTab,
+    resolveChannelInfo,
+    whenDocumentReady,
+} from "./parse-channel-info";
 
 const FIXTURE_DIR = join(__dirname, "..", "..", "test", "fixtures");
 
@@ -896,5 +902,105 @@ describe("parseChannelInfo – playlist filtering", () => {
         };
         const info = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([]);
+    });
+});
+
+describe("whenDocumentReady", () => {
+    it("resolves immediately when readyState is already complete", async () => {
+        const doc = new DOMParser().parseFromString("<html></html>", "text/html");
+        expect(doc.readyState).toBe("complete");
+        await expect(whenDocumentReady(doc)).resolves.toBeUndefined();
+    });
+
+    it("waits for the readystatechange that flips to complete", async () => {
+        const doc = new DOMParser().parseFromString("<html></html>", "text/html");
+        let state: DocumentReadyState = "loading";
+        Object.defineProperty(doc, "readyState", { configurable: true, get: () => state });
+
+        const promise = whenDocumentReady(doc);
+        // A `readystatechange` while still loading should NOT resolve the wait.
+        doc.dispatchEvent(new Event("readystatechange"));
+        state = "complete";
+        doc.dispatchEvent(new Event("readystatechange"));
+
+        await expect(promise).resolves.toBeUndefined();
+    });
+
+    it("resolves after the timeout when the document never reaches complete", async () => {
+        const doc = new DOMParser().parseFromString("<html></html>", "text/html");
+        Object.defineProperty(doc, "readyState", { configurable: true, get: () => "loading" });
+
+        const start = Date.now();
+        await expect(whenDocumentReady(doc, 5)).resolves.toBeUndefined();
+        // Loose bound; the assertion is "didn't hang", not "exact timing".
+        expect(Date.now() - start).toBeLessThan(500);
+    });
+});
+
+describe("resolveChannelInfo", () => {
+    const emptyDoc = (): Document =>
+        new DOMParser().parseFromString("<html><body></body></html>", "text/html");
+
+    const channelHtml = (id: string, title: string): string =>
+        `<html><body><script>var ytInitialData = ${JSON.stringify({
+            metadata: { channelMetadataRenderer: { externalId: id, title } },
+        })};</script></body></html>`;
+
+    it("returns the local parse and never calls fetchCurrentPage when the live page yields a channel", async () => {
+        const fetchCurrentPage = vi.fn();
+        const info = await resolveChannelInfo({
+            initialYtInitialData: {
+                metadata: {
+                    channelMetadataRenderer: {
+                        externalId: "UCLOCALXXXXXXXXXXXXXXXXX",
+                        title: "Local",
+                    },
+                },
+            },
+            document: emptyDoc(),
+            fetchCurrentPage,
+        });
+        expect(info?.channelId).toBe("UCLOCALXXXXXXXXXXXXXXXXX");
+        expect(info?.channelTitle).toBe("Local");
+        expect(fetchCurrentPage).not.toHaveBeenCalled();
+    });
+
+    it("falls back to a same-origin fetch when the live page has no usable state", async () => {
+        const info = await resolveChannelInfo({
+            initialYtInitialData: undefined,
+            document: emptyDoc(),
+            fetchCurrentPage: vi
+                .fn()
+                .mockResolvedValue(channelHtml("UCFETCHEDXXXXXXXXXXXXXX", "Fetched")),
+        });
+        expect(info?.channelId).toBe("UCFETCHEDXXXXXXXXXXXXXX");
+        expect(info?.channelTitle).toBe("Fetched");
+    });
+
+    it("returns null when fetchCurrentPage resolves to null", async () => {
+        const info = await resolveChannelInfo({
+            initialYtInitialData: undefined,
+            document: emptyDoc(),
+            fetchCurrentPage: vi.fn().mockResolvedValue(null),
+        });
+        expect(info).toBeNull();
+    });
+
+    it("returns null when fetchCurrentPage rejects", async () => {
+        const info = await resolveChannelInfo({
+            initialYtInitialData: undefined,
+            document: emptyDoc(),
+            fetchCurrentPage: vi.fn().mockRejectedValue(new Error("network")),
+        });
+        expect(info).toBeNull();
+    });
+
+    it("returns null when the fetched HTML has neither ytInitialData nor microdata", async () => {
+        const info = await resolveChannelInfo({
+            initialYtInitialData: undefined,
+            document: emptyDoc(),
+            fetchCurrentPage: vi.fn().mockResolvedValue("<html><body>nothing</body></html>"),
+        });
+        expect(info).toBeNull();
     });
 });

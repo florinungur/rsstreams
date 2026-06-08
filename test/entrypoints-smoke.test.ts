@@ -232,6 +232,37 @@ describe("entrypoint shells", () => {
             delete (window as unknown as { ytInitialData?: unknown }).ytInitialData;
         });
 
+        it("recovers via same-origin fetch when the live page has no ytInitialData", async () => {
+            // No `window.ytInitialData`; jsdom document has no microdata. The
+            // fetch fallback re-pulls the current URL and parses its inline
+            // ytInitialData – this is the SPA-stale recovery path.
+            const channelHtml = `<html><body><script>var ytInitialData = ${JSON.stringify({
+                metadata: {
+                    channelMetadataRenderer: {
+                        externalId: "UCRECOVERXXXXXXXXXXXXXX",
+                        title: "Recovered Channel",
+                    },
+                },
+            })};</script></body></html>`;
+            vi.stubGlobal(
+                "fetch",
+                vi.fn().mockResolvedValue({
+                    ok: true,
+                    text: () => Promise.resolve(channelHtml),
+                }),
+            );
+
+            const mod = await import("@/entrypoints/extract-channel");
+            const spec = mod.default as unknown as () => Promise<{
+                channelId: string;
+                channelTitle: string;
+                playlists: Array<{ listId: string; name: string }>;
+            } | null>;
+            const result = await spec();
+            expect(result?.channelId).toBe("UCRECOVERXXXXXXXXXXXXXX");
+            expect(result?.channelTitle).toBe("Recovered Channel");
+        });
+
         it("falls back to current-page playlists when fetch throws", async () => {
             (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
                 metadata: {
