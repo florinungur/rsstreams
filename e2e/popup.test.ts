@@ -72,6 +72,27 @@ describe("RSStreams popup (E2E, stock Firefox)", () => {
         // scripting.executeScript path produced.
         const html = await driver.executeScript<string>("return document.body.innerHTML;");
         console.log(`[diagnostic] popup HTML for ${path}:\n${html}\n[/diagnostic]`);
+
+        // DIAGNOSTIC (remove once e2e is green): run scripting.executeScript
+        // manually from the popup context, so any thrown error is surfaced
+        // instead of swallowed by fetchChannelInfoFromActiveTab's try/catch.
+        const probe = await driver.executeAsyncScript<unknown>(
+            `const cb = arguments[arguments.length - 1];
+             (async () => {
+                 try {
+                     const tabs = await browser.tabs.query({ url: "http://127.0.0.1/*" });
+                     const tabId = tabs[0]?.id;
+                     const results = await browser.scripting.executeScript({
+                         target: { tabId },
+                         files: ["extract-channel.js"],
+                     });
+                     cb({ ok: true, tabId, results });
+                 } catch (e) {
+                     cb({ ok: false, error: String(e), stack: e?.stack });
+                 }
+             })();`,
+        );
+        console.log(`[diagnostic] executeScript probe for ${path}:`, JSON.stringify(probe));
     }
 
     async function countRows(selector: string): Promise<number> {
