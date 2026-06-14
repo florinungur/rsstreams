@@ -24,7 +24,7 @@
         "test": "vitest",
         "test:run": "vitest run --coverage",
         "test:canary": "vitest run --config vitest.canary.config.ts",
-        "build:e2e": "wxt build -b firefox --mode e2e",
+        "build:e2e": "wxt zip -b firefox --mode e2e",
         "e2e": "pnpm build:e2e && node --test e2e/*.test.ts",
         "wxt:prepare": "wxt prepare",
         "check:listing": "node scripts/check-amo-listing.mjs"

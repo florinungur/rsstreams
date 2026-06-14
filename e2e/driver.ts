@@ -18,7 +18,12 @@ export const GECKO_ID = "rsstreams@florinungur.com";
 export const FIXED_UUID = "d4f9a0e2-1b3c-4d5e-6f70-8192a3b4c5d6";
 
 // The `--mode e2e` build (widened host_permissions); see wxt.config.ts.
-export const E2E_EXTENSION = fileURLToPath(new URL("../.output/firefox-mv3-e2e", import.meta.url));
+// DIAGNOSTIC: switching to the XPI zip from `wxt zip --mode e2e` to test
+// whether the chrome script loader's "Unable to load script" failure with
+// executeScript({ files }) is specific to temporary unpacked installs.
+export const E2E_EXTENSION = fileURLToPath(
+    new URL("../.output/rsstreams-0.1.1-firefox.zip", import.meta.url),
+);
 
 const MAC_FIREFOX = "/Applications/Firefox.app/Contents/MacOS/firefox";
 
