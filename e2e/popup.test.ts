@@ -73,26 +73,39 @@ describe("RSStreams popup (E2E, stock Firefox)", () => {
         const html = await driver.executeScript<string>("return document.body.innerHTML;");
         console.log(`[diagnostic] popup HTML for ${path}:\n${html}\n[/diagnostic]`);
 
-        // DIAGNOSTIC (remove once e2e is green): run scripting.executeScript
-        // manually from the popup context, so any thrown error is surfaced
-        // instead of swallowed by fetchChannelInfoFromActiveTab's try/catch.
+        // DIAGNOSTIC (remove once e2e is green): probe three independent paths:
+        //   (1) executeScript with files: – the production code path
+        //   (2) executeScript with func: – isolates file loading from scripting
+        //   (3) fetch() of the script URL – isolates URL resolution / CSP
         const probe = await driver.executeAsyncScript<unknown>(
             `const cb = arguments[arguments.length - 1];
              (async () => {
+                 const out = {};
                  try {
                      const tabs = await browser.tabs.query({ url: "http://127.0.0.1/*" });
-                     const tabId = tabs[0]?.id;
-                     const results = await browser.scripting.executeScript({
-                         target: { tabId },
+                     out.tabId = tabs[0]?.id;
+                 } catch (e) { out.tabsError = String(e); }
+                 try {
+                     out.filesResult = await browser.scripting.executeScript({
+                         target: { tabId: out.tabId },
                          files: ["extract-channel.js"],
                      });
-                     cb({ ok: true, tabId, results });
-                 } catch (e) {
-                     cb({ ok: false, error: String(e), stack: e?.stack });
-                 }
+                 } catch (e) { out.filesError = String(e); }
+                 try {
+                     out.funcResult = await browser.scripting.executeScript({
+                         target: { tabId: out.tabId },
+                         func: () => ({ here: location.href, hasInitialData: typeof window.ytInitialData }),
+                     });
+                 } catch (e) { out.funcError = String(e); }
+                 try {
+                     const r = await fetch("extract-channel.js");
+                     out.fetchStatus = r.status;
+                     out.fetchLen = (await r.text()).length;
+                 } catch (e) { out.fetchError = String(e); }
+                 cb(out);
              })();`,
         );
-        console.log(`[diagnostic] executeScript probe for ${path}:`, JSON.stringify(probe));
+        console.log(`[diagnostic] probe for ${path}:`, JSON.stringify(probe));
     }
 
     async function countRows(selector: string): Promise<number> {
