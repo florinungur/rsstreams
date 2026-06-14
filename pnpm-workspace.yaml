@@ -35,6 +35,10 @@ strictDepBuilds: false
 # Force transitive deps onto patched versions for Dependabot advisories.
 # tmp <0.2.6: path-traversal via unsanitized prefix/postfix (GHSA-52f5-9888-hmc6).
 # uuid <11.1.1: missing buffer bounds check in v3/v5/v6 with `buf` arg (GHSA-mh3m-62v7-68xg).
+# shell-quote <1.8.4: quote() doesn't escape newlines in object .op values (GHSA-w7jw-789q-3m8p, CVE-2026-9277).
+# esbuild <0.28.1: missing binary integrity in Deno module → RCE via NPM_CONFIG_REGISTRY (GHSA-gv7w-rqvm-qjhr); arbitrary file read on Windows dev server (GHSA-g7r4-m6w7-qqqr).
 overrides:
   tmp: ">=0.2.6"
   uuid: ">=11.1.1"
+  shell-quote: ">=1.8.4"
+  esbuild: ">=0.28.1"
