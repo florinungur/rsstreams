@@ -106,7 +106,7 @@ jobs:
         id: firefox
         uses: browser-actions/setup-firefox@v1
         with:
-          firefox-version: "151.0.3"
+          firefox-version: latest
 
       - name: Pin geckodriver to 0.36.0 (override runner image's 0.37.0)
         run: |
