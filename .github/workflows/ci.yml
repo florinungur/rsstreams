@@ -108,6 +108,17 @@ jobs:
         with:
           firefox-version: "151.0.3"
 
+      - name: Diagnostic – geckodriver versions on PATH and Selenium cache
+        run: |
+          echo "PATH geckodriver:"
+          which geckodriver || echo "(none)"
+          geckodriver --version 2>&1 | head -3 || true
+          echo "Image geckodriver cache:"
+          ls -la /usr/local/share/gecko_driver/ 2>/dev/null || true
+          ls /opt/hostedtoolcache 2>/dev/null || true
+          echo "Selenium Manager cache:"
+          ls -la ~/.cache/selenium/geckodriver/linux64/ 2>/dev/null || echo "(empty)"
+
       # Builds the --mode e2e variant, then drives stock Firefox headlessly via
       # Selenium (Selenium Manager auto-resolves geckodriver). No xvfb needed –
       # headless Firefox runs without a display server.
