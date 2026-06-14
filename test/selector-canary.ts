@@ -21,22 +21,52 @@ import { selfTest } from "@/lib/selectors";
 
 const CHANNEL_ID = "UCBJycsmduvYEL83R_U4JriQ"; // Marques Brownlee
 const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
+const MAX_ATTEMPTS = 4;
+const BASE_BACKOFF_MS = 1000;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+function retryDelayMs(response: Response, attempt: number): number {
+    // Honor Retry-After when present (delta-seconds or HTTP-date per RFC 9110).
+    const header = response.headers.get("retry-after");
+    if (header) {
+        const seconds = Number(header);
+        if (Number.isFinite(seconds) && seconds >= 0) {
+            return Math.min(seconds * 1000, 30_000);
+        }
+        const dateMs = Date.parse(header);
+        if (!Number.isNaN(dateMs)) {
+            return Math.max(0, Math.min(dateMs - Date.now(), 30_000));
+        }
+    }
+    // Exponential backoff with jitter: 1s, 2s, 4s (+ up to 500ms).
+    return BASE_BACKOFF_MS * 2 ** (attempt - 1) + Math.floor(Math.random() * 500);
+}
 
 async function fetchYouTube(path: string): Promise<string> {
-    const response = await fetch(`https://www.youtube.com${path}`, {
-        headers: {
-            // Mimic real Firefox so YouTube serves the same markup (and keeps
-            // ytInitialData inline). The CONSENT cookie suppresses the EU
-            // interstitial, which otherwise strips ytInitialData.
-            "User-Agent": USER_AGENT,
-            "Accept-Language": "en-US,en;q=0.5",
-            Cookie: "CONSENT=YES+",
-        },
-    });
-    if (!response.ok) {
-        throw new Error(`GET ${path} -> HTTP ${response.status}`);
+    let lastStatus = 0;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const response = await fetch(`https://www.youtube.com${path}`, {
+            headers: {
+                // Mimic real Firefox so YouTube serves the same markup (and keeps
+                // ytInitialData inline). The CONSENT cookie suppresses the EU
+                // interstitial, which otherwise strips ytInitialData.
+                "User-Agent": USER_AGENT,
+                "Accept-Language": "en-US,en;q=0.5",
+                Cookie: "CONSENT=YES+",
+            },
+        });
+        if (response.ok) {
+            return response.text();
+        }
+        lastStatus = response.status;
+        const transient = response.status === 429 || response.status >= 500;
+        if (!transient || attempt === MAX_ATTEMPTS) {
+            throw new Error(`GET ${path} -> HTTP ${response.status}`);
+        }
+        await sleep(retryDelayMs(response, attempt));
     }
-    return response.text();
+    throw new Error(`GET ${path} -> HTTP ${lastStatus}`); // unreachable; satisfies the type checker
 }
 
 function parse(html: string): Document {
