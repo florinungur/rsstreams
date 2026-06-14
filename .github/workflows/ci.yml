@@ -112,8 +112,10 @@ jobs:
       # 2026-06-03) on $PATH. Under that version, scripting.executeScript({
       # files: [...] }) against a temporarily-installed addon fails with
       # "Unable to load script: moz-extension://<uuid>/extract-channel.js",
-      # which leaves the popup permanently empty. 0.36.0 works against the same
-      # Firefox build. Pin until upstream lands a fix.
+      # which leaves the popup permanently empty. 0.36.0 works against the
+      # same Firefox build. Tracked upstream as mozilla/geckodriver#2248 +
+      # https://bugzilla.mozilla.org/show_bug.cgi?id=2045054; fix uplifted to
+      # Firefox 152 beta. Drop this pin once Firefox 152 ships.
       - name: Pin geckodriver to 0.36.0
         run: |
           curl -fsSL https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz \
