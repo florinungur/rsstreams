@@ -66,6 +66,12 @@ describe("RSStreams popup (E2E, stock Firefox)", () => {
             until.elementLocated(By.css(".feed-list__group, .feed-list__empty")),
             RENDER_TIMEOUT,
         );
+
+        // DIAGNOSTIC (remove once e2e is green): dump rendered popup HTML so CI
+        // logs show whether the empty state or feed-list rendered, and what the
+        // scripting.executeScript path produced.
+        const html = await driver.executeScript<string>("return document.body.innerHTML;");
+        console.log(`[diagnostic] popup HTML for ${path}:\n${html}\n[/diagnostic]`);
     }
 
     async function countRows(selector: string): Promise<number> {
