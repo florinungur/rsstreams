@@ -108,16 +108,13 @@ jobs:
         with:
           firefox-version: "151.0.3"
 
-      - name: Diagnostic – geckodriver versions on PATH and Selenium cache
+      - name: Pin geckodriver to 0.36.0 (override runner image's 0.37.0)
         run: |
-          echo "PATH geckodriver:"
-          which geckodriver || echo "(none)"
-          geckodriver --version 2>&1 | head -3 || true
-          echo "Image geckodriver cache:"
-          ls -la /usr/local/share/gecko_driver/ 2>/dev/null || true
-          ls /opt/hostedtoolcache 2>/dev/null || true
-          echo "Selenium Manager cache:"
-          ls -la ~/.cache/selenium/geckodriver/linux64/ 2>/dev/null || echo "(empty)"
+          curl -sL https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz | sudo tar -xz -C /usr/local/bin/
+          sudo chmod +x /usr/local/bin/geckodriver
+          hash -r
+          which geckodriver
+          geckodriver --version | head -1
 
       # Builds the --mode e2e variant, then drives stock Firefox headlessly via
       # Selenium (Selenium Manager auto-resolves geckodriver). No xvfb needed –
