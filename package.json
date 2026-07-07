@@ -1,6 +1,6 @@
 {
     "name": "rsstreams",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "private": true,
     "description": "Find every RSS/Atom feed for the YouTube page you're on.",
     "homepage": "https://github.com/florinungur/rsstreams#readme",
