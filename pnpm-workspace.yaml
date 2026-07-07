@@ -16,21 +16,16 @@ auditLevel: moderate
 # Mitigates fresh-malware injections caught within hours by the ecosystem.
 minimumReleaseAge: 1440
 
-# Allow-list of dependencies whose install / postinstall scripts may run.
-# Add a package here only after auditing what its postinstall does.
-onlyBuiltDependencies:
+# Build-script allow/deny map. pnpm 11 removed onlyBuiltDependencies /
+# ignoredBuiltDependencies in favour of this single key (pnpm/pnpm#11220);
+# under the default `strictDepBuilds: true`, any dep with a build script not
+# listed here hard-fails the install – the supply-chain gate we want.
+# Add a package here only after auditing what its build script does.
+allowBuilds:
   # Selects the platform-specific native binary; required by WXT/Vite build.
-  - esbuild
-
-# Acknowledge known ignored scripts without erroring.
-# spawn-sync compiles a sync-spawn fallback for ancient Node; vestigial on Node 26.
-ignoredBuiltDependencies:
-  - spawn-sync
-
-# pnpm 11 default `strictDepBuilds: true` errors on ANY ignored build script,
-# even when the dep is in the allow/ignore list. Convert to a warning so the
-# allow-list governs behaviour without hard-failing on novel transitive deps.
-strictDepBuilds: false
+  esbuild: true
+  # Compiles a sync-spawn fallback for ancient Node; vestigial on Node 26.
+  spawn-sync: false
 
 # Force transitive deps onto patched versions for Dependabot advisories.
 # tmp <0.2.6: path-traversal via unsanitized prefix/postfix (GHSA-52f5-9888-hmc6).
