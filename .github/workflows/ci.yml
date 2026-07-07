@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
 
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
 
@@ -107,22 +107,6 @@ jobs:
         uses: browser-actions/setup-firefox@v1
         with:
           firefox-version: latest
-
-      # The ubuntu-latest runner image ships geckodriver 0.37.0 (released
-      # 2026-06-03) on $PATH. Under that version, scripting.executeScript({
-      # files: [...] }) against a temporarily-installed addon fails with
-      # "Unable to load script: moz-extension://<uuid>/extract-channel.js",
-      # which leaves the popup permanently empty. 0.36.0 works against the
-      # same Firefox build. Tracked upstream as mozilla/geckodriver#2248 +
-      # https://bugzilla.mozilla.org/show_bug.cgi?id=2045054; fix uplifted to
-      # Firefox 152 beta. Drop this pin once Firefox 152 ships.
-      - name: Pin geckodriver to 0.36.0
-        run: |
-          curl -fsSL https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin/
-          sudo chmod +x /usr/local/bin/geckodriver
-          hash -r
-          geckodriver --version | head -1
 
       # Builds the --mode e2e variant, then drives stock Firefox headlessly via
       # Selenium (Selenium Manager auto-resolves geckodriver). No xvfb needed –
