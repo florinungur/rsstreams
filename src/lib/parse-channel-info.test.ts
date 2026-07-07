@@ -1003,4 +1003,51 @@ describe("resolveChannelInfo", () => {
         });
         expect(info).toBeNull();
     });
+
+    // Inject channel microdata into a live document, mimicking a `<meta
+    // itemprop>` microformat block that YouTube renders on channel/handle pages.
+    const settleMicrodata = (doc: Document, id: string, title: string): void => {
+        const idMeta = doc.createElement("meta");
+        idMeta.setAttribute("itemprop", "identifier");
+        idMeta.setAttribute("content", id);
+        const nameMeta = doc.createElement("meta");
+        nameMeta.setAttribute("itemprop", "name");
+        nameMeta.setAttribute("content", title);
+        doc.head.append(idMeta, nameMeta);
+    };
+
+    it("re-reads the live DOM when the refetch yields nothing but the page settled mid-await", async () => {
+        // The live document is empty on the first pass, so the fetch fires. The
+        // fetched HTML is a bot-served/consent shell with no usable state, but
+        // an in-flight SPA navigation completes during the await and populates
+        // the live document's microdata – a fresh read now succeeds.
+        const doc = emptyDoc();
+        const info = await resolveChannelInfo({
+            initialYtInitialData: undefined,
+            document: doc,
+            fetchCurrentPage: vi.fn().mockImplementation(async () => {
+                settleMicrodata(doc, "UCSETTLEDXXXXXXXXXXXXXX", "Settled");
+                return "<html><body>consent shell</body></html>";
+            }),
+        });
+        expect(info?.channelId).toBe("UCSETTLEDXXXXXXXXXXXXXX");
+        expect(info?.channelTitle).toBe("Settled");
+        expect(info?.playlists).toEqual([]);
+    });
+
+    it("prefers the fetched page over a settled live DOM (SPA-stale escape hatch wins)", async () => {
+        // Even when the live DOM settles mid-await, an authoritative fetched
+        // page must still win – this is the v0.1.1 SPA-stale fix.
+        const doc = emptyDoc();
+        const info = await resolveChannelInfo({
+            initialYtInitialData: undefined,
+            document: doc,
+            fetchCurrentPage: vi.fn().mockImplementation(async () => {
+                settleMicrodata(doc, "UCLIVEDOMXXXXXXXXXXXXXX", "Live DOM");
+                return channelHtml("UCFETCHEDXXXXXXXXXXXXXX", "Fetched");
+            }),
+        });
+        expect(info?.channelId).toBe("UCFETCHEDXXXXXXXXXXXXXX");
+        expect(info?.channelTitle).toBe("Fetched");
+    });
 });
