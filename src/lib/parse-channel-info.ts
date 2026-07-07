@@ -286,7 +286,17 @@ export async function resolveChannelInfo(
 
     const freshDoc = new DOMParser().parseFromString(html, "text/html");
     const freshYtInitialData = extractYtInitialData(freshDoc);
-    return parseChannelInfo({ ytInitialData: freshYtInitialData, document: freshDoc });
+    const fromFetched = parseChannelInfo({ ytInitialData: freshYtInitialData, document: freshDoc });
+    if (fromFetched) return fromFetched;
+
+    // Last resort: re-read the live document's microdata. The fetch above can
+    // legitimately come up empty (bot-served HTML, a consent redirect, stripped
+    // ytInitialData), yet the live DOM may have settled while the fetch was in
+    // flight – an in-flight SPA navigation completing during the await. The
+    // first pass read the pre-navigation document, so a fresh read can now
+    // succeed where it didn't before. The fetched page still wins whenever it
+    // yields data, preserving the SPA-stale escape hatch above.
+    return parseChannelInfo({ document: deps.document });
 }
 
 /**
