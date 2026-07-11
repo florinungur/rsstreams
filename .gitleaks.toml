@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Saved YouTube page HTML used as test fixtures; contains only YouTube's public client keys (INNERTUBE_API_KEY etc.), captured logged out"
+paths = ['''test/fixtures/.*''']
