@@ -1,4 +1,4 @@
-// DOM selector chain for the page-detector fallback path, plus a self-test
+// Selector chain for parse-channel-info's DOM fallback path, plus a self-test
 // helper that the nightly selector-canary workflow uses to detect when
 // YouTube ships a layout change. The chain is intentionally shallow –
 // ytInitialData is the primary path and covers ~all healthy pages – but we
