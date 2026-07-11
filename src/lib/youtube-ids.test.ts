@@ -21,22 +21,26 @@ describe("asChannelId", () => {
     it("throws on a non-UC channel id", () => {
         expect(() => asChannelId("PLBCF2DAC6FFB574DE")).toThrow(/must start with "UC"/);
     });
-
-    it("rejects a plain string at compile time", () => {
-        // @ts-expect-error a raw string is not a ChannelId
-        expect(() => uploadsListId("UCnotBranded")).not.toThrow();
-    });
 });
 
 describe("asListId", () => {
     it("throws on an empty id", () => {
         expect(() => asListId("")).toThrow(/non-empty/);
     });
+
+    it("throws on a UC channel id", () => {
+        expect(() => asListId(`UC${SUFFIX}`)).toThrow(/must not be a "UC" channel id/);
+    });
 });
 
 describe("uploadsListId", () => {
     it("replaces UC prefix with UU", () => {
         expect(uploadsListId(CHANNEL)).toBe(`UU${SUFFIX}`);
+    });
+
+    it("rejects a plain string at compile time", () => {
+        // @ts-expect-error a raw string is not a ChannelId
+        expect(() => uploadsListId("UCnotBranded")).not.toThrow();
     });
 });
 

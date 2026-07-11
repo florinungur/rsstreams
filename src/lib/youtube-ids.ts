@@ -33,6 +33,9 @@ export function asListId(value: string): ListId {
     if (value.length === 0) {
         throw new Error("listId must be non-empty");
     }
+    if (value.startsWith(CHANNEL_PREFIX)) {
+        throw new Error(`listId must not be a "${CHANNEL_PREFIX}" channel id; got "${value}"`);
+    }
     return value as ListId;
 }
 
