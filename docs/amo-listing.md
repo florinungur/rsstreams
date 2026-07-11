@@ -51,7 +51,7 @@ Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Kee
 >
 > **Privacy**
 >
-> RSStreams collects nothing, has no analytics, and contains no remote code. It reads a YouTube page only when you click the icon, and the only network request it makes is to YouTube itself, to list a channel's public playlists. Nothing is sent to me or any third party. Full policy: [PRIVACY.md](https://github.com/florinungur/rsstreams/blob/main/PRIVACY.md)
+> RSStreams collects nothing, has no analytics, and contains no remote code. It reads a YouTube page only when you click the icon, and the only network requests it makes go to YouTube itself, to list a channel's public playlists. Nothing is sent to me or any third party. Full policy: [PRIVACY.md](https://github.com/florinungur/rsstreams/blob/main/PRIVACY.md)
 >
 > **Permissions**
 >
@@ -71,13 +71,13 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 
 > Clean-room rewrite of teddy-gustiaux/youtube-rss-finder (MIT, dormant since 2020); no code copied.
 >
-> Build (Node 26, pnpm 11.3.0), from the attached sources zip:
+> Build from the attached sources zip (pnpm version: `packageManager` in the included package.json; Node version: as pinned in `.github/workflows/release.yml` in the public repo):
 >
 >     pnpm install --frozen-lockfile
 >     pnpm wxt:prepare
 >     pnpm build
 >
-> Output lands in `.output/firefox-mv3/` and matches the uploaded package. Built with WXT 0.20.26 + Vite. Lifecycle scripts are disabled globally (pnpm `ignoreScripts`), so `wxt prepare` is run explicitly.
+> Output lands in `.output/firefox-mv3/` and matches the uploaded package. Built with WXT + Vite (exact versions in the included package.json). Lifecycle scripts are disabled globally (pnpm `ignoreScripts`), so `wxt prepare` is run explicitly.
 >
 > No remote code, no eval, no obfuscation. Minified by the bundler; original sources are in the zip.
 >
@@ -88,7 +88,7 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 
 ## Source code submission
 
-Required (we use a bundler). Upload `.output/rsstreams-0.1.2-sources.zip` (produced by `pnpm zip`). It contains the full source, `package.json`, `pnpm-lock.yaml`, and `wxt.config.ts`; it excludes `node_modules`, `.output`, `coverage`, and dotfiles.
+Required (we use a bundler). Upload `.output/rsstreams-0.1.3-sources.zip` (produced by `pnpm zip`; CI fails if this filename doesn't track package.json's version). It contains the full source, `package.json`, `pnpm-lock.yaml`, and `wxt.config.ts`; it excludes `node_modules`, `.output`, `coverage`, and dotfiles.
 
 ## Screenshots
 
