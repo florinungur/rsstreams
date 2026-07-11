@@ -10,6 +10,7 @@
 
 import type { ChannelInfo, NamedPlaylist } from "./feed-builder";
 import { extractDomChannel, extractDomTitle } from "./selectors";
+import { asListId, type ChannelId, isChannelId, type ListId } from "./youtube-ids";
 
 export interface ParseChannelInfoInput {
     /** Parsed value of `window.ytInitialData` from the YouTube page. */
@@ -54,7 +55,7 @@ function parseFromYtInitialData(ytInitialData: unknown): ChannelInfo | null {
 }
 
 interface OwnerHit {
-    channelId: string;
+    channelId: ChannelId;
     channelTitle: string;
 }
 
@@ -190,7 +191,7 @@ function collectLockupPlaylists(node: unknown, out: NamedPlaylist[], seen: Set<s
                 );
                 if (name) {
                     seen.add(contentId);
-                    out.push({ listId: contentId, name });
+                    out.push({ listId: asListId(contentId), name });
                 }
             }
         }
@@ -204,7 +205,7 @@ function collectLockupPlaylists(node: unknown, out: NamedPlaylist[], seen: Set<s
             const name = pickFirstRun(grid["title"]);
             if (name) {
                 seen.add(contentId);
-                out.push({ listId: contentId, name });
+                out.push({ listId: asListId(contentId), name });
             }
         }
     }
@@ -363,10 +364,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isChannelId(value: string): boolean {
-    return value.startsWith("UC");
-}
-
 function pickString(value: unknown): string | null {
     return typeof value === "string" && value.length > 0 ? value : null;
 }
@@ -413,10 +410,10 @@ function readPath(root: unknown, path: ReadonlyArray<string | number>): unknown 
  * System playlists (UU/UULF/UUSH/UULV) are filtered out – they're already
  * surfaced by the 4 system rows.
  */
-function stripPlaylistBrowseId(browseId: string | null): string | null {
+function stripPlaylistBrowseId(browseId: string | null): ListId | null {
     if (!browseId) return null;
     if (!browseId.startsWith("VL")) return null;
     const listId = browseId.slice(2);
     if (listId.startsWith("UU")) return null;
-    return listId.length > 0 ? listId : null;
+    return listId.length > 0 ? asListId(listId) : null;
 }

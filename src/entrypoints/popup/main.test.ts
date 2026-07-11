@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installBrowserMock, type MockBrowser } from "@/__mocks__/browser";
 import type { ChannelInfo } from "@/lib/feed-builder";
+import { asChannelId, asListId } from "@/lib/youtube-ids";
 import { boot, fetchChannelInfoFromActiveTab, init } from "./main";
 
 const VALID_INFO: ChannelInfo = {
-    channelId: "UCBJycsmduvYEL83R_U4JriQ",
+    channelId: asChannelId("UCBJycsmduvYEL83R_U4JriQ"),
     channelTitle: "Marques Brownlee",
-    playlists: [{ listId: "PLW0jXmYHvbZNT54SkSdVfgxsmqkQwSqsj", name: "Retro Tech" }],
+    playlists: [{ listId: asListId("PLW0jXmYHvbZNT54SkSdVfgxsmqkQwSqsj"), name: "Retro Tech" }],
 };
 
 describe("popup init – synchronous render", () => {
