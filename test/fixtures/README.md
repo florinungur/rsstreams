@@ -1,16 +1,19 @@
 # Test fixtures
 
 Verbatim HTML captures of public YouTube pages, used by the
-`parseChannelInfo` and `selectors` unit tests. Captured 2026-05-27.
+`parseChannelInfo` and `selectors` unit tests. Capture dates:
+`git log --format=%as -- <file>`.
 
-| File                       | URL                                                                        | Channel          | Notes                                                                                                                                                                 |
-| -------------------------- | -------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mkbhd-handle.html`        | `https://www.youtube.com/@MKBHD`                                           | Marques Brownlee | Handle URL, Home tab. Exposes ~9 named-playlist shelves via `shelfRenderer` nodes.                                                                                    |
-| `mkbhd-channel-id.html`    | `https://www.youtube.com/channel/UCBJycsmduvYEL83R_U4JriQ`                 | Marques Brownlee | Canonical channel URL. Same content, different routing.                                                                                                               |
-| `mkbhd-watch.html`         | `https://www.youtube.com/watch?v=_02K6efDLI0`                              | Marques Brownlee | Video page. Owner is buried inside `videoOwnerRenderer`, not metadata.                                                                                                |
-| `mkbhd-playlist.html`      | `https://www.youtube.com/playlist?list=PLBsP89CPrMeM2MmF4suOeT0vsic9nEC2Y` | Marques Brownlee | Playlist page ("First Impressions!"). Owner in `playlistSidebarRenderer`.                                                                                             |
-| `no-shorts-channel.html`   | `https://www.youtube.com/@Computerphile`                                   | Computerphile    | Channel with no Shorts tab – verifies the parser still returns a valid `ChannelInfo`.                                                                                 |
-| `mkbhd-playlists-tab.html` | `https://www.youtube.com/@mkbhd/playlists`                                 | Marques Brownlee | Playlists tab. Backs `parsePlaylistsTab` – the content script fetches this to surface the canonical playlist grid regardless of which sub-page the user clicked from. |
+The capture loop below is the single source for the URL ↔ file mapping.
+
+| File                       | Channel          | Notes                                                                                                                                                                 |
+| -------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mkbhd-handle.html`        | Marques Brownlee | Handle URL, Home tab. Exposes ~9 named-playlist shelves via `shelfRenderer` nodes.                                                                                    |
+| `mkbhd-channel-id.html`    | Marques Brownlee | Canonical channel URL. Same content, different routing.                                                                                                               |
+| `mkbhd-watch.html`         | Marques Brownlee | Video page. Owner is buried inside `videoOwnerRenderer`, not metadata.                                                                                                |
+| `mkbhd-playlist.html`      | Marques Brownlee | Playlist page ("First Impressions!"). Owner in `playlistSidebarRenderer`.                                                                                             |
+| `no-shorts-channel.html`   | Computerphile    | Channel with no Shorts tab – verifies the parser still returns a valid `ChannelInfo`.                                                                                 |
+| `mkbhd-playlists-tab.html` | Marques Brownlee | Playlists tab. Backs `parsePlaylistsTab` – the content script fetches this to surface the canonical playlist grid regardless of which sub-page the user clicked from. |
 
 ## Re-capturing
 

@@ -18,11 +18,7 @@ Install from [Firefox Add-ons](https://addons.mozilla.org/addon/rsstreams-for-yo
 
 ## Privacy
 
-RSStreams collects nothing, sends nothing to me, and has no analytics or remote code. It reads a YouTube page only when you click the icon, and the only network request it triggers is to YouTube itself (to list a channel's public playlists). See [PRIVACY.md](PRIVACY.md).
-
-## Status
-
-v0.1.0 is live on AMO (auto-approved 2026-06-02; first listed release).
+RSStreams collects nothing, sends nothing to me, and has no analytics or remote code. It reads a YouTube page only when you click the icon, and the only network requests it triggers go to YouTube itself. See [PRIVACY.md](PRIVACY.md).
 
 ## Development
 
@@ -47,6 +43,8 @@ Lifecycle scripts are blocked globally for supply-chain safety; `wxt prepare` ru
 
 ### Selector canary
 
-YouTube ships layout changes silently. `pnpm test:canary` re-fetches a few live pages and asserts the ytInitialData parser and DOM selector chain still resolve a channel. It runs nightly in CI (`.github/workflows/selector-canary.yml`) and files a single tracking issue when it goes red — early warning before users hit an empty popup. It's excluded from `pnpm test:run` so the unit suite stays offline and deterministic.
+YouTube ships layout changes silently. `pnpm test:canary` re-fetches a few live pages and asserts the ytInitialData parser and DOM selector chain still resolve a channel. It runs nightly in CI (`.github/workflows/selector-canary.yml`) and files a single tracking issue when it goes red – early warning before users hit an empty popup. It's excluded from `pnpm test:run` so the unit suite stays offline and deterministic.
 
-Icons live in `assets/icon.svg` (source). Regenerate the PNG set into `public/icon/` with `./scripts/render-icons.sh` (requires `brew install librsvg`).
+### Icons
+
+The source icon is `assets/icon.svg`. Regenerate the PNG set into `public/icon/` with `./scripts/render-icons.sh` (requires `brew install librsvg`).
