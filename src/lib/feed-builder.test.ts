@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildFeeds, type ChannelInfo, type FeedRow } from "./feed-builder";
+import { asChannelId, asListId } from "./youtube-ids";
 
 const CHANNEL: ChannelInfo = {
-    channelId: "UCBJycsmduvYEL83R_U4JriQ",
+    channelId: asChannelId("UCBJycsmduvYEL83R_U4JriQ"),
     channelTitle: "Marques Brownlee",
     playlists: [],
 };
@@ -55,8 +56,8 @@ describe("buildFeeds", () => {
         const rows = buildFeeds({
             ...CHANNEL,
             playlists: [
-                { listId: "PLfirst", name: "First playlist" },
-                { listId: "PLsecond", name: "Second playlist" },
+                { listId: asListId("PLfirst"), name: "First playlist" },
+                { listId: asListId("PLsecond"), name: "Second playlist" },
             ],
         });
 

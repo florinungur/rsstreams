@@ -1,6 +1,7 @@
 import "@/ui/popup.css";
 
 import { buildFeeds, type ChannelInfo, type NamedPlaylist } from "@/lib/feed-builder";
+import { isChannelId } from "@/lib/youtube-ids";
 import { renderFeedList } from "@/ui/feed-list";
 
 export interface InitOptions {
@@ -116,7 +117,7 @@ export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo | nul
 function isChannelInfo(value: unknown): value is ChannelInfo {
     if (typeof value !== "object" || value === null) return false;
     const v = value as Record<string, unknown>;
-    if (typeof v["channelId"] !== "string" || !v["channelId"].startsWith("UC")) return false;
+    if (typeof v["channelId"] !== "string" || !isChannelId(v["channelId"])) return false;
     if (typeof v["channelTitle"] !== "string" || v["channelTitle"].length === 0) return false;
     if (!Array.isArray(v["playlists"])) return false;
     return v["playlists"].every(isNamedPlaylist);

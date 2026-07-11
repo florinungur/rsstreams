@@ -2,7 +2,9 @@
 // long-form, Shorts, Live) followed by one row per named playlist.
 
 import {
+    type ChannelId,
     channelFeedUrl,
+    type ListId,
     liveListId,
     longFormListId,
     playlistFeedUrl,
@@ -10,12 +12,12 @@ import {
 } from "./youtube-ids";
 
 export interface NamedPlaylist {
-    listId: string;
+    listId: ListId;
     name: string;
 }
 
 export interface ChannelInfo {
-    channelId: string; // UC…
+    channelId: ChannelId;
     channelTitle: string;
     playlists: NamedPlaylist[];
 }
@@ -27,7 +29,7 @@ export interface FeedRow {
     url: URL;
     variant: FeedVariant;
     /** Present only when variant === "playlist". */
-    playlistId?: string;
+    playlistId?: ListId;
 }
 
 /**

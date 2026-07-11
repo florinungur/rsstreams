@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FeedRow } from "../lib/feed-builder";
+import { asListId } from "../lib/youtube-ids";
 import { renderFeedList } from "./feed-list";
 
 function uploadsRow(): FeedRow {
@@ -27,7 +28,7 @@ function playlistRow(name = "Retro Tech", listId = "PLretro"): FeedRow {
         label: name,
         url: new URL(`https://www.youtube.com/feeds/videos.xml?playlist_id=${listId}`),
         variant: "playlist",
-        playlistId: listId,
+        playlistId: asListId(listId),
     };
 }
 

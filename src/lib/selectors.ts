@@ -15,6 +15,8 @@
 //   - Watch + playlist pages do NOT expose channelId in microdata; that path
 //     stays JSON-only.
 
+import { type ChannelId, isChannelId } from "./youtube-ids";
+
 /**
  * Selectors that yield a `UC…` channel ID when one is present in the DOM.
  * Order: most-specific microdata first, legacy Polymer last.
@@ -72,12 +74,12 @@ export const CHANNEL_TITLE_SELECTORS: ReadonlyArray<{
  * `parse-channel-info.ts` uses it as the fallback when ytInitialData is
  * absent or incomplete.
  */
-export function extractDomChannel(doc: Document): string | null {
+export function extractDomChannel(doc: Document): ChannelId | null {
     for (const probe of CHANNEL_ID_SELECTORS) {
         const el = doc.querySelector(probe.selector);
         if (!el) continue;
         const value = probe.extract(el);
-        if (value && value.startsWith("UC")) return value;
+        if (value && isChannelId(value)) return value;
     }
     return null;
 }
