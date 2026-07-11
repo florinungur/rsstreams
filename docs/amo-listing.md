@@ -88,7 +88,7 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 
 ## Source code submission
 
-Required (we use a bundler). Upload `.output/rsstreams-<version>-sources.zip` (produced by `pnpm zip`). It contains the full source, `package.json`, `pnpm-lock.yaml`, and `wxt.config.ts`; it excludes `node_modules`, `.output`, `coverage`, and dotfiles.
+Required (we use a bundler). Upload `.output/rsstreams-0.1.3-sources.zip` (produced by `pnpm zip`; CI fails if this filename doesn't track package.json's version). It contains the full source, `package.json`, `pnpm-lock.yaml`, and `wxt.config.ts`; it excludes `node_modules`, `.output`, `coverage`, and dotfiles.
 
 ## Screenshots
 
