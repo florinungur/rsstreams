@@ -3,7 +3,9 @@ name: Selector canary
 # Nightly probe that re-fetches live YouTube and checks the ytInitialData parser
 # + DOM selector chain still resolve a channel. When YouTube ships a layout
 # change, this goes red and files a single tracking issue – early warning before
-# users hit an empty popup. See test/selector-canary.ts.
+# users hit an empty popup. YouTube rate-limiting the runner IP (HTTP 429) is
+# NOT a regression: those tests skip, the job stays green with a warning
+# annotation, and no issue is filed. See test/selector-canary.ts.
 
 on:
   schedule:
@@ -46,7 +48,16 @@ jobs:
         run: pnpm wxt:prepare
 
       - name: Run selector canary
-        run: pnpm test:canary
+        # `shell: bash` turns on pipefail so tee can't mask a vitest failure.
+        shell: bash
+        run: pnpm test:canary 2>&1 | tee canary.log
+
+      - name: Warn when tests were skipped due to rate limiting
+        if: success()
+        run: |
+          if grep -q "skipped" canary.log; then
+            echo "::warning title=Selector canary::YouTube rate-limited the runner (HTTP 429); skipped tests were NOT verified tonight. Persistent skips mean the canary is blind – consider a different fetch strategy."
+          fi
 
       - name: File an issue on failure
         if: failure()
