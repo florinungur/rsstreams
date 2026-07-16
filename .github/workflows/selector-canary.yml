@@ -1,11 +1,12 @@
 name: Selector canary
 
 # Nightly probe that re-fetches live YouTube and checks the ytInitialData parser
-# + DOM selector chain still resolve a channel. When YouTube ships a layout
-# change, this goes red and files a single tracking issue – early warning before
-# users hit an empty popup. YouTube rate-limiting the runner IP (HTTP 429) is
-# NOT a regression: those tests skip, the job stays green with a warning
-# annotation, and no issue is filed. See test/selector-canary.ts.
+# + DOM selector chain still resolve a channel. Two outcome classes:
+#   - Skip (green + warning annotation): transient fetch trouble – 429, 5xx
+#     after retries, network errors, per-fetch timeouts. No issue filed.
+#   - Fail (red + a single tracking issue): parser/selector regressions and
+#     durable fetch problems (403 bot-block, 404 fixture rot) – needs a human.
+# See test/selector-canary.ts.
 
 on:
   schedule:
@@ -24,7 +25,10 @@ concurrency:
 jobs:
   canary:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Headroom for a total-outage night: 4 tests × ~170s worst case plus
+    # install/prepare. A job killed by this timeout is cancelled, not failed,
+    # so the issue step below wouldn't run.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -52,11 +56,13 @@ jobs:
         shell: bash
         run: pnpm test:canary 2>&1 | tee canary.log
 
-      - name: Warn when tests were skipped due to rate limiting
+      - name: Warn when tests were skipped due to fetch trouble
         if: success()
         run: |
-          if grep -q "skipped" canary.log; then
-            echo "::warning title=Selector canary::YouTube rate-limited the runner (HTTP 429); skipped tests were NOT verified tonight. Persistent skips mean the canary is blind – consider a different fetch strategy."
+          # Match the vitest summary line, not any occurrence of "skipped" –
+          # pnpm banners could false-positive on a bare grep.
+          if grep -qE "Tests .* skipped" canary.log; then
+            echo "::warning title=Selector canary::Fetch unavailable (429/5xx/network); skipped tests were NOT verified tonight. Persistent skips mean the canary is blind – consider a different fetch strategy."
           fi
 
       - name: File an issue on failure
@@ -67,14 +73,34 @@ jobs:
         run: |
           gh label create selector-canary \
             --color FBCA04 \
-            --description "Nightly canary detected YouTube layout drift" \
+            --description "Nightly selector canary failure" \
             --force
           existing=$(gh issue list --label selector-canary --state open --json number --jq 'length')
           if [ "$existing" = "0" ]; then
+            # Put the actual failure in the body so the issue doesn't claim a
+            # layout change when the log says 403/404. The job can fail before
+            # the run step (install, wxt prepare), so guard on the log existing;
+            # `|| true` stops a no-match grep killing the step under `set -e`.
+            errors=""
+            if [ -f canary.log ]; then
+              errors=$(grep -E "FAIL|Error:" canary.log | head -5 || true)
+            fi
+            if [ -z "$errors" ]; then
+              errors="(no error lines captured – the job may have failed before the canary ran; check the run log)"
+            fi
+            {
+              echo "Nightly selector canary failed. Run: ${RUN_URL}"
+              echo
+              echo '```'
+              echo "$errors"
+              echo '```'
+              echo
+              echo "If the errors point at the parser or DOM selector chain: re-capture fixtures (test/fixtures/README.md) and widen selectors (src/lib/selectors.ts) or JSON paths (src/lib/parse-channel-info.ts) as needed. A 403 means the runner is bot-blocked; a 404 means the pinned video/channel is gone."
+            } > issue-body.md
             gh issue create \
-              --title "Selector canary failing: YouTube layout may have changed" \
+              --title "Selector canary failing" \
               --label selector-canary \
-              --body "Nightly selector canary failed; YouTube likely changed its layout and broke the ytInitialData parser or the DOM selector chain. Run: ${RUN_URL} - re-capture fixtures (test/fixtures/README.md) and widen selectors (src/lib/selectors.ts) or JSON paths (src/lib/parse-channel-info.ts) as needed."
+              --body-file issue-body.md
           else
             echo "An open selector-canary issue already exists; not filing a duplicate."
           fi
