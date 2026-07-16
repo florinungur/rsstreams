@@ -104,7 +104,9 @@ async function fetchYouTube(path: string): Promise<string> {
             throw new Error(`GET ${path} -> HTTP ${response.status}`);
         }
         if (attempt === MAX_ATTEMPTS) {
-            throw new FetchUnavailableError(`GET ${path} -> HTTP ${response.status} after ${attempt} attempts`);
+            throw new FetchUnavailableError(
+                `GET ${path} -> HTTP ${response.status} after ${attempt} attempts`,
+            );
         }
         await sleep(retryDelayMs(attempt, response));
     }
