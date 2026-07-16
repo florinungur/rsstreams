@@ -37,10 +37,11 @@ const FETCH_TIMEOUT_MS = 20_000;
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The fetch stayed unavailable after all retries – 429, 5xx, or a
-// network-level error. That's infrastructure noise (rate limiting, outage,
-// datacenter-IP bot-block), not a layout change. Tests skip on this instead of
-// failing so the canary workflow only files issues for real selector/parser
-// regressions. The message carries the cause (HTTP status or network error).
+// network-level error. That's infrastructure noise (rate limiting, outage, a
+// bot-block surfacing as 429/503 – the 403 form stays fail-class below), not a
+// layout change. Tests skip on this instead of failing so the canary workflow
+// only files issues for real selector/parser regressions. The message carries
+// the cause (HTTP status or network error).
 class FetchUnavailableError extends Error {}
 
 // `response` is absent for network-level errors – no Retry-After to honor, so
@@ -80,9 +81,17 @@ async function fetchYouTube(path: string): Promise<string> {
                 // AbortSignal.timeout rejects with TimeoutError, caught below.
                 signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             });
+            if (response.ok) {
+                // Body read stays inside the try: fetch() resolves once headers
+                // arrive, so a mid-body reset or timeout rejects here with the
+                // same network-class errors (TypeError: terminated,
+                // TimeoutError) – retry, don't fail the test.
+                return await response.text();
+            }
         } catch (error) {
-            // Network-level rejection (ECONNRESET, DNS, TLS) or per-fetch
-            // timeout: same transient class as 429/5xx – backoff and retry.
+            // Network-level rejection (ECONNRESET, DNS, TLS), per-fetch
+            // timeout, or mid-body failure: same transient class as 429/5xx –
+            // backoff and retry.
             lastCause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
             if (attempt === MAX_ATTEMPTS) {
                 throw new FetchUnavailableError(
@@ -91,9 +100,6 @@ async function fetchYouTube(path: string): Promise<string> {
             }
             await sleep(retryDelayMs(attempt));
             continue;
-        }
-        if (response.ok) {
-            return response.text();
         }
         lastCause = `HTTP ${response.status}`;
         const transient = response.status === 429 || response.status >= 500;

@@ -25,7 +25,10 @@ concurrency:
 jobs:
   canary:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Headroom for a total-outage night: 4 tests × ~170s worst case plus
+    # install/prepare. A job killed by this timeout is cancelled, not failed,
+    # so the issue step below wouldn't run.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -70,7 +73,7 @@ jobs:
         run: |
           gh label create selector-canary \
             --color FBCA04 \
-            --description "Nightly canary detected YouTube layout drift" \
+            --description "Nightly selector canary failure" \
             --force
           existing=$(gh issue list --label selector-canary --state open --json number --jq 'length')
           if [ "$existing" = "0" ]; then
