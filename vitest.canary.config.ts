@@ -20,7 +20,10 @@ export default defineConfig({
         globals: true,
         environment: "jsdom",
         include: ["test/selector-canary.ts"],
-        testTimeout: 30_000,
-        hookTimeout: 30_000,
+        // Worst case per test: 4 fetch attempts × 20s AbortSignal timeout
+        // + ~7s cumulative backoff ≈ 87s. 30s couldn't fit even two timed-out
+        // attempts, turning the skip-class timeout into a test failure.
+        testTimeout: 120_000,
+        hookTimeout: 120_000,
     },
 });

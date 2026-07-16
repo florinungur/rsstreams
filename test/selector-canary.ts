@@ -5,8 +5,15 @@
 //   - the DOM selector chain (`selfTest`), the fallback path.
 // When YouTube ships a layout change that breaks a path, this flips to red and
 // the selector-canary workflow opens a GitHub issue – early warning before
-// users hit an empty popup. Rate limiting (HTTP 429 from the runner IP) skips
-// the affected test instead of failing it, so only real regressions go red.
+// users hit an empty popup.
+//
+// Failure classes:
+//   - Skip (job stays green, warning annotation): transient fetch trouble –
+//     HTTP 429, HTTP 5xx after retries, network-level errors (ECONNRESET, DNS,
+//     TLS), and per-fetch timeouts. Infrastructure noise, not a regression.
+//   - Fail (job red, issue filed): other 4xx (403 = runner bot-blocked, 404 =
+//     fixture rot – both need a human) and assertion failures (real
+//     parser/selector regressions).
 // Run via `pnpm test:canary` (NOT the unit suite).
 //
 // This file is intentionally named `*.ts` (not `*.test.ts`) so the default
@@ -25,17 +32,22 @@ const CHANNEL_ID = "UCBJycsmduvYEL83R_U4JriQ"; // Marques Brownlee
 const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
 const MAX_ATTEMPTS = 4;
 const BASE_BACKOFF_MS = 1000;
+const FETCH_TIMEOUT_MS = 20_000;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-// YouTube kept returning 429 after all retries – the runner IP is rate-limited,
-// not a layout change. Tests skip on this instead of failing so the canary
-// workflow only files issues for real selector/parser regressions.
-class RateLimitError extends Error {}
+// The fetch stayed unavailable after all retries – 429, 5xx, or a
+// network-level error. That's infrastructure noise (rate limiting, outage,
+// datacenter-IP bot-block), not a layout change. Tests skip on this instead of
+// failing so the canary workflow only files issues for real selector/parser
+// regressions. The message carries the cause (HTTP status or network error).
+class FetchUnavailableError extends Error {}
 
-function retryDelayMs(response: Response, attempt: number): number {
+// `response` is absent for network-level errors – no Retry-After to honor, so
+// they always take the exponential branch.
+function retryDelayMs(attempt: number, response?: Response): number {
     // Honor Retry-After when present (delta-seconds or HTTP-date per RFC 9110).
-    const header = response.headers.get("retry-after");
+    const header = response?.headers.get("retry-after");
     if (header) {
         const seconds = Number(header);
         if (Number.isFinite(seconds) && seconds >= 0) {
@@ -51,42 +63,62 @@ function retryDelayMs(response: Response, attempt: number): number {
 }
 
 async function fetchYouTube(path: string): Promise<string> {
-    let lastStatus = 0;
+    let lastCause = "";
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        const response = await fetch(`https://www.youtube.com${path}`, {
-            headers: {
-                // Mimic real Firefox so YouTube serves the same markup (and keeps
-                // ytInitialData inline). The CONSENT cookie suppresses the EU
-                // interstitial, which otherwise strips ytInitialData.
-                "User-Agent": USER_AGENT,
-                "Accept-Language": "en-US,en;q=0.5",
-                Cookie: "CONSENT=YES+",
-            },
-        });
+        let response: Response;
+        try {
+            response = await fetch(`https://www.youtube.com${path}`, {
+                headers: {
+                    // Mimic real Firefox so YouTube serves the same markup (and keeps
+                    // ytInitialData inline). The CONSENT cookie suppresses the EU
+                    // interstitial, which otherwise strips ytInitialData.
+                    "User-Agent": USER_AGENT,
+                    "Accept-Language": "en-US,en;q=0.5",
+                    Cookie: "CONSENT=YES+",
+                },
+                // A stalled fetch counts as a network-level (skip-class) error:
+                // AbortSignal.timeout rejects with TimeoutError, caught below.
+                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
+        } catch (error) {
+            // Network-level rejection (ECONNRESET, DNS, TLS) or per-fetch
+            // timeout: same transient class as 429/5xx – backoff and retry.
+            lastCause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+            if (attempt === MAX_ATTEMPTS) {
+                throw new FetchUnavailableError(
+                    `GET ${path} -> ${lastCause} after ${attempt} attempts`,
+                );
+            }
+            await sleep(retryDelayMs(attempt));
+            continue;
+        }
         if (response.ok) {
             return response.text();
         }
-        lastStatus = response.status;
+        lastCause = `HTTP ${response.status}`;
         const transient = response.status === 429 || response.status >= 500;
-        if (!transient || attempt === MAX_ATTEMPTS) {
-            if (response.status === 429) {
-                throw new RateLimitError(`GET ${path} -> HTTP 429 after ${attempt} attempts`);
-            }
+        if (!transient) {
+            // Deliberately NOT skip-class: 403 = runner bot-blocked, 404 = the
+            // pinned video/channel is gone. Skipping these would keep the job
+            // green forever while the canary is blind – a human must look.
             throw new Error(`GET ${path} -> HTTP ${response.status}`);
         }
-        await sleep(retryDelayMs(response, attempt));
+        if (attempt === MAX_ATTEMPTS) {
+            throw new FetchUnavailableError(`GET ${path} -> HTTP ${response.status} after ${attempt} attempts`);
+        }
+        await sleep(retryDelayMs(attempt, response));
     }
-    throw new Error(`GET ${path} -> HTTP ${lastStatus}`); // unreachable; satisfies the type checker
+    throw new FetchUnavailableError(`GET ${path} -> ${lastCause}`); // unreachable; satisfies the type checker
 }
 
-// `ctx.skip` shows up as a skipped test (vitest still exits 0), so a rate-limited
-// night stays green while real failures keep failing the job.
+// `ctx.skip` shows up as a skipped test (vitest still exits 0), so a night with
+// transient fetch trouble stays green while real failures keep failing the job.
 async function fetchYouTubeOrSkip(ctx: TestContext, path: string): Promise<string> {
     try {
         return await fetchYouTube(path);
     } catch (error) {
-        if (error instanceof RateLimitError) {
-            ctx.skip(`rate limited: ${error.message}`);
+        if (error instanceof FetchUnavailableError) {
+            ctx.skip(`fetch unavailable: ${error.message}`);
         }
         throw error;
     }
