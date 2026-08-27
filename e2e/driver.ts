@@ -54,6 +54,19 @@ export async function buildDriver(): Promise<firefox.Driver> {
         options.addArguments("-headless");
     }
 
-    const driver = await new Builder().forBrowser("firefox").setFirefoxOptions(options).build();
+    // Firefox 138+ refuses WebDriver navigation to privileged schemes –
+    // `moz-extension://` included – unless the session has system access. The
+    // suite reaches the popup by URL, so without this the first
+    // `driver.get(popupUrl())` throws UnsupportedOperationError. It is a
+    // geckodriver flag, not a browser capability: passing it through
+    // `Options.addArguments` is rejected. Test-only – it widens what the
+    // automation session may drive, not what the extension can do.
+    const service = new firefox.ServiceBuilder().addArguments("--allow-system-access");
+
+    const driver = await new Builder()
+        .forBrowser("firefox")
+        .setFirefoxOptions(options)
+        .setFirefoxService(service)
+        .build();
     return driver as firefox.Driver;
 }
