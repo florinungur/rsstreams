@@ -169,6 +169,16 @@ describe("selector canary (live YouTube)", () => {
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, `/channel/${CHANNEL_ID}/playlists`);
+        // YouTube sometimes serves this tab with no playlist entries at all –
+        // an empty shell that parses fine everywhere else. Asserting on it
+        // would blame the parser for a page that never carried the data, so
+        // the absence of any playlist link makes this skip-class. A stripped
+        // page has no `list=PL` anywhere; a layout change that renames JSON
+        // keys still leaves the user-visible playlist URLs in the markup, so
+        // that case still fails below.
+        if (!/list=PL/.test(html)) {
+            ctx.skip("playlists tab served without any playlist entries");
+        }
         const playlists = parsePlaylistsTab(extractYtInitialData(parse(html)));
         expect(playlists.length).toBeGreaterThan(0);
         expect(playlists[0]?.listId).toMatch(/^PL/);
