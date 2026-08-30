@@ -37,13 +37,13 @@ Lifecycle scripts are blocked globally for supply-chain safety; `wxt prepare` ru
 
 ### End-to-end tests
 
-`e2e/` drives stock Firefox with Selenium (`selenium-webdriver`; Selenium Manager auto-resolves geckodriver, so there's no `geckodriver` dependency). A real toolbar click can't open the popup in automated Firefox, so the suite pins the extension UUID via a profile pref and navigates straight to `moz-extension://<uuid>/popup.html?tabId=<tab>`.
+The `e2e/` suite drives stock Firefox with Selenium (`selenium-webdriver`; Selenium Manager auto-resolves geckodriver, so there's no `geckodriver` dependency). A real toolbar click can't open the popup in automated Firefox, so the suite pins the extension UUID via a profile pref and navigates straight to `moz-extension://<uuid>/popup.html?tabId=<tab>`.
 
-`executeScript` only injects on hosts the manifest grants, so `pnpm build:e2e` (`wxt build --mode e2e`) produces a **test-only** variant in `.output/firefox-mv3-e2e/` that additionally grants `http://127.0.0.1/*`, letting the suite inject into a locally-served fixture instead of hitting live YouTube. The production build (`pnpm build`) stays `youtube.com`-only and is the one submitted to AMO.
+The `executeScript` API only injects on hosts the manifest grants, so `pnpm build:e2e` (`wxt build --mode e2e`) produces a **test-only** variant in `.output/firefox-mv3-e2e/` that additionally grants `http://127.0.0.1/*`, letting the suite inject into a locally-served fixture instead of hitting live YouTube. The production build (`pnpm build`) stays `youtube.com`-only and is the one submitted to AMO.
 
 ### Selector canary
 
-YouTube ships layout changes silently. `pnpm test:canary` re-fetches a few live pages and asserts the ytInitialData parser and DOM selector chain still resolve a channel. It runs nightly in CI (`.github/workflows/selector-canary.yml`) and files a single tracking issue when it goes red – early warning before users hit an empty popup. It's excluded from `pnpm test:run` so the unit suite stays offline and deterministic.
+YouTube ships layout changes silently. Running `pnpm test:canary` re-fetches a few live pages and asserts the ytInitialData parser and DOM selector chain still resolve a channel. It runs nightly in CI (`.github/workflows/selector-canary.yml`) and files a single tracking issue when it goes red – early warning before users hit an empty popup. It's excluded from `pnpm test:run` so the unit suite stays offline and deterministic.
 
 ### Icons
 

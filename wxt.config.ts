@@ -8,12 +8,13 @@ export default defineConfig({
         name: "RSStreams for YouTube",
         description: "Find every RSS/Atom feed for the YouTube page you're on.",
         permissions: ["scripting", "clipboardWrite"],
-        // Production ships youtube.com only. `wxt build --mode e2e` additionally
-        // grants 127.0.0.1 so the Selenium suite can inject `extract-channel.js`
-        // into a locally-served fixture page (executeScript needs a host-permission
-        // match). The widened build lands in `.output/firefox-mv3-e2e/` and is
-        // for tests only – never submitted to AMO. The Phase 6 release build runs
-        // the default (production) mode and stays youtube.com-only.
+        // Production ships youtube.com only. Running `wxt build --mode e2e`
+        // additionally grants 127.0.0.1 so the Selenium suite can inject
+        // `extract-channel.js` into a locally-served fixture page (executeScript
+        // needs a host-permission match). The widened build lands in
+        // `.output/firefox-mv3-e2e/` and is for tests only – never submitted to
+        // AMO. The Phase 6 release build runs the default (production) mode and
+        // stays youtube.com-only.
         host_permissions:
             mode === "e2e"
                 ? ["https://www.youtube.com/*", "http://127.0.0.1/*"]
@@ -36,12 +37,13 @@ export default defineConfig({
         },
     }),
     // The AMO source submission (`wxt zip`) excludes node_modules, dotfiles, and
-    // .output by default. `coverage/` is generated test output and isn't needed
-    // to reproduce the build – keep it out of the sources zip.
+    // .output by default. The `coverage/` directory is generated test output and
+    // isn't needed to reproduce the build – keep it out of the sources zip.
     zip: {
-        // coverage/ is generated test output; docs/screenshots/ are AMO listing
-        // images. Neither is needed to reproduce the build – keep both out of
-        // the sources zip so the source submission stays code-only and small.
+        // The coverage/ directory is generated test output; docs/screenshots/
+        // are AMO listing images. Neither is needed to reproduce the build –
+        // keep both out of the sources zip so the source submission stays
+        // code-only and small.
         excludeSources: ["coverage/**", "docs/screenshots/**"],
     },
 });

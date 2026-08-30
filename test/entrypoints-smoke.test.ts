@@ -30,9 +30,9 @@ describe("entrypoint shells", () => {
             const mod = await import("@/entrypoints/extract-channel");
             const spec = mod.default as unknown as () => Promise<unknown>;
             expect(typeof spec).toBe("function");
-            // jsdom's default document has no microdata; ytInitialData is
-            // undefined on window. parseChannelInfo returns null without ever
-            // calling fetch.
+            // The jsdom default document has no microdata; ytInitialData is
+            // undefined on window. The parseChannelInfo function returns null
+            // without ever calling fetch.
             expect(await spec()).toBeNull();
         });
 
@@ -85,8 +85,8 @@ describe("entrypoint shells", () => {
                     },
                 },
             };
-            // fetch stub returns !ok so the catch fires and we fall back to
-            // the Home-shelf playlist.
+            // The fetch stub returns !ok so the catch fires and we fall back
+            // to the Home-shelf playlist.
             const mod = await import("@/entrypoints/extract-channel");
             const spec = mod.default as unknown as () => Promise<{
                 channelId: string;

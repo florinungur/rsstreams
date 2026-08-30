@@ -19,8 +19,8 @@
 //      subset, and Videos / Shorts / Live / Posts tabs carry no playlists at
 //      all. The fetch is best-effort; on failure we fall back to whatever
 //      step 3 surfaced.
-// `defineUnlistedScript`'s function return value becomes the script's last
-// expression, which `executeScript` surfaces on `InjectionResult.result`.
+// The return value of `defineUnlistedScript`'s function becomes the script's
+// last expression, which `executeScript` surfaces on `InjectionResult.result`.
 
 import type { ChannelInfo } from "@/lib/feed-builder";
 import {
@@ -46,7 +46,7 @@ async function fetchPlaylistsTab(channelId: string): Promise<unknown> {
     return extractYtInitialData(doc);
 }
 
-// `redirect: "follow"` (the default) is intentional: YouTube redirects
+// Using `redirect: "follow"` (the default) is intentional: YouTube redirects
 // region-blocked or consent-required pages to `consent.youtube.com`, which is
 // a different host and so the cross-origin response is unreadable here. The
 // resulting fetch failure surfaces as `null` via the catch in

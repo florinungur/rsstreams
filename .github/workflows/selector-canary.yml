@@ -52,7 +52,7 @@ jobs:
         run: pnpm wxt:prepare
 
       - name: Run selector canary
-        # `shell: bash` turns on pipefail so tee can't mask a vitest failure.
+        # Pipefail comes from `shell: bash`, so tee can't mask a vitest failure.
         shell: bash
         run: pnpm test:canary 2>&1 | tee canary.log
 

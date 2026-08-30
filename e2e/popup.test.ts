@@ -91,7 +91,7 @@ describe("RSStreams popup (E2E, stock Firefox)", () => {
         const playlistRows = await countRows(".feed-row--playlist");
         assert.ok(playlistRows >= 1, `expected >=1 playlist row, got ${playlistRows}`);
 
-        // getText() returns the CSS text-transform'd label (uppercased), so
+        // The label from getText() is CSS text-transform'd (uppercased), so
         // match case-insensitively – we care about the "Playlists (N)" shape.
         const summary = await driver.findElement(By.css(".feed-list__playlists summary")).getText();
         assert.match(summary, /^playlists \(\d+\)$/i);

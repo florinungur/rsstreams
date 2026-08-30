@@ -820,7 +820,7 @@ describe("parseChannelInfo – playlist filtering", () => {
     });
 
     it("short-circuits readPath when a numeric step targets a non-array", () => {
-        // `tabs` is a string – the numeric `[0]` step bails out.
+        // The `tabs` field is a string – the numeric `[0]` step bails out.
         const data = {
             metadata: {
                 channelMetadataRenderer: {
@@ -839,7 +839,7 @@ describe("parseChannelInfo – playlist filtering", () => {
     });
 
     it("short-circuits readPath when a string step targets a non-record", () => {
-        // `tabs[0]` resolves to a string – the next `tabRenderer` step bails.
+        // The `tabs[0]` element resolves to a string – the next `tabRenderer` step bails.
         const data = {
             metadata: {
                 channelMetadataRenderer: {

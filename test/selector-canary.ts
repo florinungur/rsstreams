@@ -44,8 +44,8 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 // the cause (HTTP status or network error).
 class FetchUnavailableError extends Error {}
 
-// `response` is absent for network-level errors – no Retry-After to honor, so
-// they always take the exponential branch.
+// The `response` argument is absent for network-level errors – no Retry-After
+// to honor, so they always take the exponential branch.
 function retryDelayMs(attempt: number, response?: Response): number {
     // Honor Retry-After when present (delta-seconds or HTTP-date per RFC 9110).
     const header = response?.headers.get("retry-after");
@@ -119,8 +119,9 @@ async function fetchYouTube(path: string): Promise<string> {
     throw new FetchUnavailableError(`GET ${path} -> ${lastCause}`); // unreachable; satisfies the type checker
 }
 
-// `ctx.skip` shows up as a skipped test (vitest still exits 0), so a night with
-// transient fetch trouble stays green while real failures keep failing the job.
+// The `ctx.skip` call shows up as a skipped test (vitest still exits 0), so a
+// night with transient fetch trouble stays green while real failures keep
+// failing the job.
 async function fetchYouTubeOrSkip(ctx: TestContext, path: string): Promise<string> {
     try {
         return await fetchYouTube(path);

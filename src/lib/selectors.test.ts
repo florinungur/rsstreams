@@ -36,10 +36,10 @@ describe("DOM extraction – channelId", () => {
     });
 
     it("falls through when meta identifier is not a UC ID (e.g. watch page videoId)", () => {
-        // mkbhd-watch.html's first identifier meta is the video ID, not a
-        // channel ID. The link[itemprop=url] fallback should still catch
-        // the @handle URL... but the @handle URL is not /channel/UC… so the
-        // fallback also misses. Result: null.
+        // The mkbhd-watch.html fixture's first identifier meta is the video
+        // ID, not a channel ID. The link[itemprop=url] fallback should
+        // still catch the @handle URL... but the @handle URL is not
+        // /channel/UC… so the fallback also misses. Result: null.
         const doc = parseHtml(loadFixture("mkbhd-watch.html"));
         expect(extractDomChannel(doc)).toBeNull();
     });
@@ -149,12 +149,12 @@ describe("selfTest", () => {
         expect(result.channelId).toHaveLength(CHANNEL_ID_SELECTORS.length);
         expect(result.channelTitle).toHaveLength(CHANNEL_TITLE_SELECTORS.length);
 
-        // meta-itemprop-identifier should hit and yield the UC ID.
+        // The meta-itemprop-identifier probe should hit and yield the UC ID.
         const identifierProbe = result.channelId.find((p) => p.name === "meta-itemprop-identifier");
         expect(identifierProbe?.matched).toBe(true);
         expect(identifierProbe?.value).toBe("UCBJycsmduvYEL83R_U4JriQ");
 
-        // meta-itemprop-name should hit on the title chain.
+        // The meta-itemprop-name probe should hit on the title chain.
         const nameProbe = result.channelTitle.find((p) => p.name === "meta-itemprop-name");
         expect(nameProbe?.matched).toBe(true);
         expect(nameProbe?.value).toBe("Marques Brownlee");

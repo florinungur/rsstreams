@@ -20,7 +20,7 @@ export default defineConfig({
         coverage: {
             provider: "v8",
             reporter: ["text", "lcov"],
-            // `src/entrypoints/extract-channel.ts` and
+            // Both `src/entrypoints/extract-channel.ts` and
             // `src/entrypoints/background.ts` are thin shells over WXT
             // auto-globals; the `entrypoints-smoke` test imports + invokes them.
             include: [
