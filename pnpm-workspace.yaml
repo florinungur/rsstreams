@@ -30,7 +30,10 @@ allowBuilds:
 # Force transitive deps onto patched versions for Dependabot advisories.
 # tmp <0.2.7: path-traversal via unsanitized prefix/postfix (GHSA-52f5-9888-hmc6); type-confusion bypass of _assertPath via non-string prefix/postfix/template (GHSA-7c78-jf6q-g5cm).
 # uuid <11.1.1: missing buffer bounds check in v3/v5/v6 with `buf` arg (GHSA-mh3m-62v7-68xg).
-# shell-quote <1.8.4: quote() doesn't escape newlines in object .op values (GHSA-w7jw-789q-3m8p, CVE-2026-9277).
+# shell-quote <1.9.0: quote() doesn't escape newlines in object .op values (GHSA-w7jw-789q-3m8p, CVE-2026-9277); quadratic-complexity DoS in parse() (GHSA-395f-4hp3-45gv).
+# postcss <8.5.23: sourceMappingURL path traversal discloses arbitrary .map files when `from` is unset (GHSA-r28c-9q8g-f849, and the incomplete-fix follow-up GHSA-fxqj-rqcc-2cmp).
+# brace-expansion 1.x <1.1.16: DoS via exponential-time expansion of consecutive non-expanding {} groups (GHSA-3jxr-9vmj-r5cp).
+# adm-zip <0.6.0: crafted ZIP triggers a 4GB memory allocation (GHSA-xcpc-8h2w-3j85).
 # esbuild <0.28.1: missing binary integrity in Deno module → RCE via NPM_CONFIG_REGISTRY (GHSA-gv7w-rqvm-qjhr); arbitrary file read on Windows dev server (GHSA-g7r4-m6w7-qqqr).
 # undici <7.28.0: six advisories, worst are TLS cert-validation bypass in SOCKS5 ProxyAgent (GHSA-vmh5-mc38-953g) and HTTP response queue poisoning via keep-alive reuse (GHSA-hm92-r4w5-c3mj).
 # vite <8.0.16: server.fs.deny bypass on Windows alternate paths (GHSA-fx2h-pf6j-xcff); launch-editor NTLMv2 hash disclosure via UNC paths (GHSA-v6wh-96g9-6wx3).
@@ -38,7 +41,11 @@ overrides:
   tmp: ">=0.2.7"
   uuid: ">=11.1.1"
   # Capped below 8: vite 8 requires undici 7.x internals (undici/lib/handler/wrap-handler.js is gone in 8).
-  undici: ">=7.28.0 <8.0.0"
+  undici: ">=7.29.0 <8.0.0"
   vite: ">=8.0.16"
-  shell-quote: ">=1.8.4"
+  shell-quote: ">=1.9.0"
   esbuild: ">=0.28.1"
+  postcss: ">=8.5.23"
+  # Scoped to the 1.x line: 2.x consumers are unaffected and can't satisfy a 1.1.16 floor.
+  brace-expansion@1: ">=1.1.16"
+  adm-zip: ">=0.6.0"
