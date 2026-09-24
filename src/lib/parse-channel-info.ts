@@ -1,13 +1,3 @@
-// Pure parser: { ytInitialData, document } → ChannelInfo | null.
-//
-// Tries ytInitialData first and falls back to DOM microdata when JSON parse
-// fails or fields are missing. YouTube's SPA navigation does NOT refresh the
-// inline `<script>var ytInitialData = ` blob, so `resolveChannelInfo` below
-// composes the local parse with a same-origin fetch of the current URL to
-// recover authoritative state when the live page reads as stale. The nightly
-// selector-canary workflow re-runs the chain against live HTML so layout
-// changes surface before users hit them.
-
 import type { ChannelInfo, NamedPlaylist } from "./feed-builder";
 import { extractDomChannel, extractDomTitle } from "./selectors";
 import { asListId, type ChannelId, isChannelId, type ListId } from "./youtube-ids";
@@ -19,15 +9,6 @@ export interface ParseChannelInfoInput {
     document?: Document;
 }
 
-/**
- * Parse a YouTube page into the `ChannelInfo` the popup needs to build feed
- * rows. Returns `null` when neither source yields a `UC…` channel ID.
- *
- * Channel + handle pages expose the owner via `metadata.channelMetadataRenderer`;
- * watch + playlist pages bury it inside `videoOwnerRenderer` nodes. Named
- * playlists are scraped from the Home-tab `shelfRenderer` entries (channel /
- * handle URLs only); other page kinds return an empty `playlists` array.
- */
 export function parseChannelInfo(input: ParseChannelInfoInput): ChannelInfo | null {
     const fromJson = parseFromYtInitialData(input.ytInitialData);
     if (fromJson) return fromJson;
@@ -100,10 +81,7 @@ function findVideoOwner(node: unknown): OwnerHit | null {
 }
 
 function findNamedPlaylists(data: Record<string, unknown>): NamedPlaylist[] {
-    // The Home tab is index 0 on the channel/handle browse response. We walk
-    // its section list and pick up any shelf whose endpoint points at a real
-    // playlist (`VLPL…`); shelves without a playlist endpoint (engagement
-    // panels, generic "Videos" shelves) are skipped.
+    // The Home tab is index 0; only its shelves linking a playlist (`VL…`) count.
     const sections = readPath(data, [
         "contents",
         "twoColumnBrowseResultsRenderer",
@@ -139,23 +117,15 @@ function findNamedPlaylists(data: Record<string, unknown>): NamedPlaylist[] {
 }
 
 /**
- * Walk the Playlists tab's `ytInitialData` and return every named playlist
- * shown in the grid. The Playlists tab is the canonical list (the Home tab
- * only shows a curated subset of shelf playlists), so the extension fetches
- * `/channel/<id>/playlists` separately to populate this regardless of which
- * sub-page the user clicked the icon from.
- *
- * Filters to `PL…` IDs only – `FL…` (Favorites), `LL` (Liked), `WL` (Watch
- * later), `HL` (History) are user-private and don't have public RSS feeds.
+ * Named playlists from the Playlists tab, which holds the full list (the Home
+ * tab shows a curated subset). Keeps `PL…` IDs only: the private lists (`FL`,
+ * `LL`, `WL`, `HL`) have no public feed.
  */
 export function parsePlaylistsTab(ytInitialData: unknown): NamedPlaylist[] {
     if (!isRecord(ytInitialData)) return [];
     const tabs = readPath(ytInitialData, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
     if (!Array.isArray(tabs)) return [];
 
-    // Find the selected tab (which is "Playlists" when this fetch returns).
-    // Falling back to scanning every tab keeps the parser resilient against
-    // tab-ordering changes.
     const out: NamedPlaylist[] = [];
     const seen = new Set<string>();
     for (const tab of tabs) {
@@ -223,13 +193,9 @@ function parseFromDom(doc: Document): ChannelInfo | null {
 }
 
 /**
- * Resolve once the document reaches `readyState === "complete"`, or after
- * `timeoutMs` if it never does. YouTube emits the inline `<script>var
- * ytInitialData = ` blob near the end of the body, so a popup click during
- * the late streaming window can read a document that's missing the channel
- * state entirely. Awaiting `complete` closes that race; the timeout keeps a
- * stalled document from hanging the popup, since `resolveChannelInfo`'s
- * fetch fallback can still recover the data.
+ * Resolves at `readyState === "complete"` or after `timeoutMs`. YouTube emits
+ * the inline ytInitialData script late in the body, so an early read can miss
+ * it; after the timeout, `resolveChannelInfo`'s refetch can still recover.
  */
 export function whenDocumentReady(doc: Document, timeoutMs = 2000): Promise<void> {
     if (doc.readyState === "complete") return Promise.resolve();
@@ -262,11 +228,8 @@ export interface ResolveChannelInfoDeps {
 }
 
 /**
- * Try the local document first; if it doesn't yield a `ChannelInfo`, do a
- * same-origin fetch of the current URL and re-parse from the server-rendered
- * HTML. The fetch path is the SPA-stale escape hatch: YouTube doesn't refresh
- * the inline `<script>var ytInitialData = ` blob on client-side navigation,
- * so the live document can lag the URL bar.
+ * Refetches the current URL when the live document yields nothing: YouTube's
+ * SPA navigation doesn't refresh the inline ytInitialData.
  */
 export async function resolveChannelInfo(
     deps: ResolveChannelInfoDeps,
@@ -290,25 +253,11 @@ export async function resolveChannelInfo(
     const fromFetched = parseChannelInfo({ ytInitialData: freshYtInitialData, document: freshDoc });
     if (fromFetched) return fromFetched;
 
-    // Last resort: re-read the live document's microdata. The fetch above can
-    // legitimately come up empty (bot-served HTML, a consent redirect, stripped
-    // ytInitialData), yet the live DOM may have settled while the fetch was in
-    // flight – an in-flight SPA navigation completing during the await. The
-    // first pass read the pre-navigation document, so a fresh read can now
-    // succeed where it didn't before. The fetched page still wins whenever it
-    // yields data, preserving the SPA-stale escape hatch above.
+    // An SPA navigation can finish during the fetch, so the live DOM gets a
+    // second read; the fetched page still wins when it yields data.
     return parseChannelInfo({ document: deps.document });
 }
 
-/**
- * Pull `ytInitialData` out of YouTube's inline `<script>var ytInitialData =
- * {...};</script>` block by walking script tags and brace-matching the
- * embedded JSON. Used as a fallback when `window.ytInitialData` isn't visible
- * to the content-script isolated world (Firefox MV3 default).
- *
- * Returns the parsed value, or `null` if no script tag carried the marker or
- * the JSON failed to parse.
- */
 export function extractYtInitialData(doc: Document): unknown {
     const MARKER = "var ytInitialData = ";
     const scripts = doc.querySelectorAll("script");
@@ -358,8 +307,6 @@ function sliceJsonObject(text: string, openIndex: number): string | null {
     return null;
 }
 
-// ----------------------- helpers -----------------------
-
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -368,11 +315,7 @@ function pickString(value: unknown): string | null {
     return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-/**
- * `{ simpleText }` and `{ runs: [{ text }] }` are the two shapes YouTube uses
- * for rich text. Most channel titles use simpleText; shelf headings + owner
- * names use runs.
- */
+/** YouTube rich text is either `{ simpleText }` or `{ runs: [{ text }] }`. */
 function pickFirstRun(value: unknown): string | null {
     if (!isRecord(value)) return null;
     const simple = pickString(value["simpleText"]);
@@ -404,12 +347,7 @@ function readPath(root: unknown, path: ReadonlyArray<string | number>): unknown 
     return cursor;
 }
 
-/**
- * Channel/playlist browse IDs in ytInitialData are prefixed with `VL` (e.g.
- * `VLPLBsP89CPrMeM2MmF4suOeT0vsic9nEC2Y` → `PLBsP89CPrMeM2MmF4suOeT0vsic9nEC2Y`).
- * System playlists (UU/UULF/UUSH/UULV) are filtered out – they're already
- * surfaced by the 4 system rows.
- */
+/** `VLPL…` → `PL…`; drops `UU…` system lists, which the fixed rows cover. */
 function stripPlaylistBrowseId(browseId: string | null): ListId | null {
     if (!browseId) return null;
     if (!browseId.startsWith("VL")) return null;

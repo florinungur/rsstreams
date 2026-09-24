@@ -1,8 +1,5 @@
-// Selenium driver setup for the E2E suite. Drives stock Firefox via the
-// classic `installAddon` path (WebDriver BiDi `webExtension.install` is not yet
-// implemented in selenium-webdriver's Node binding as of 4.44.0 – see the
-// Phase 5 notes). Selenium Manager auto-resolves a geckodriver matching the
-// installed Firefox, so no `geckodriver` npm dependency is needed.
+// Uses `installAddon`: selenium-webdriver's Node binding has no BiDi
+// `webExtension.install`.
 
 import { existsSync } from "node:fs";
 import { env, platform } from "node:process";
@@ -54,13 +51,8 @@ export async function buildDriver(): Promise<firefox.Driver> {
         options.addArguments("-headless");
     }
 
-    // Firefox 138+ refuses WebDriver navigation to privileged schemes –
-    // `moz-extension://` included – unless the session has system access. The
-    // suite reaches the popup by URL, so without this the first
-    // `driver.get(popupUrl())` throws UnsupportedOperationError. It is a
-    // geckodriver flag, not a browser capability: passing it through
-    // `Options.addArguments` is rejected. Test-only – it widens what the
-    // automation session may drive, not what the extension can do.
+    // Firefox 138+ blocks WebDriver navigation to `moz-extension://` without
+    // system access. It's a geckodriver flag, so `Options.addArguments` rejects it.
     const service = new firefox.ServiceBuilder().addArguments("--allow-system-access");
 
     const driver = await new Builder()

@@ -1,8 +1,3 @@
-// Smoke tests that exercise the entrypoint shells (`background.ts` and
-// `extract-channel.ts`) so the v8 coverage provider records 100% on them.
-// Both files are thin wrappers over WXT auto-globals registered in
-// `test/setup.ts`; this module imports + invokes them once.
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("entrypoint shells", () => {
@@ -30,15 +25,10 @@ describe("entrypoint shells", () => {
             const mod = await import("@/entrypoints/extract-channel");
             const spec = mod.default as unknown as () => Promise<unknown>;
             expect(typeof spec).toBe("function");
-            // The jsdom default document has no microdata; ytInitialData is
-            // undefined on window. The parseChannelInfo function returns null
-            // without ever calling fetch.
             expect(await spec()).toBeNull();
         });
 
         it("falls back to inline window.ytInitialData and skips the playlists fetch when it fails", async () => {
-            // Stub the page's ytInitialData with channel metadata + a Home
-            // shelf playlist.
             vi.stubGlobal("ytInitialData", undefined);
             (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
                 metadata: {
@@ -85,8 +75,6 @@ describe("entrypoint shells", () => {
                     },
                 },
             };
-            // The fetch stub returns !ok so the catch fires and we fall back
-            // to the Home-shelf playlist.
             const mod = await import("@/entrypoints/extract-channel");
             const spec = mod.default as unknown as () => Promise<{
                 channelId: string;
@@ -233,9 +221,6 @@ describe("entrypoint shells", () => {
         });
 
         it("recovers via same-origin fetch when the live page has no ytInitialData", async () => {
-            // No `window.ytInitialData`; jsdom document has no microdata. The
-            // fetch fallback re-pulls the current URL and parses its inline
-            // ytInitialData – this is the SPA-stale recovery path.
             const channelHtml = `<html><body><script>var ytInitialData = ${JSON.stringify({
                 metadata: {
                     channelMetadataRenderer: {

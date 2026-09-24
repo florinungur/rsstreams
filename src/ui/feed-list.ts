@@ -1,7 +1,3 @@
-// Pure render module for the popup's feed list. DOM ops on a passed-in
-// container; copy + flash timer injected via options for testability.
-// The popup entrypoint wires this to `navigator.clipboard.writeText`.
-
 import type { FeedRow } from "../lib/feed-builder";
 
 export interface FeedListOptions {
@@ -18,17 +14,7 @@ const FAILED_LABEL = "Copy failed";
 const SUCCESS_CLASS = "feed-row__copy--success";
 const ERROR_CLASS = "feed-row__copy--error";
 
-/**
- * Render the feed list into `container`, replacing any existing children.
- * Rows are split into two groups: the 4 system feeds (uploads / long-form /
- * shorts / live) and the named playlists. A "Playlists" heading is rendered
- * between them when at least one playlist row is present, so the visual
- * grouping mirrors the 4 + N structure already in `FeedRow[]`.
- *
- * Each row shows the label, the feed URL, and a "Copy" button that calls
- * `options.copy` with the URL and flashes "Copied" / "Copy failed" before
- * resetting after `options.flashMs` (default 1500ms).
- */
+/** Renders the system rows, then the playlists in a collapsed `<details>`. */
 export function renderFeedList(
     container: HTMLElement,
     rows: FeedRow[],
@@ -50,9 +36,7 @@ export function renderFeedList(
         container.appendChild(buildGroup(systemRows, options));
     }
     if (playlistRows.length > 0) {
-        // <details> gives us native keyboard + accessibility support for the
-        // collapse toggle. Default is closed (no `open` attribute) – channels
-        // can have 20+ playlists and most users want the 4 system feeds first.
+        // Collapsed by default: a channel can have dozens of playlists.
         const details = document.createElement("details");
         details.className = "feed-list__playlists";
 

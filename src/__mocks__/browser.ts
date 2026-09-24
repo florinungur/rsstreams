@@ -1,9 +1,3 @@
-// Factory for the `browser.*` namespace mock used in popup unit tests.
-//
-// Pattern: `installBrowserMock()` in `beforeEach`; arrange `.mockResolvedValue`
-// on the returned methods; `vi.unstubAllGlobals()` in `afterEach` resets the
-// stub. Lighter than `sinon-chrome` (upstream's choice) and natively typed.
-
 import { vi } from "vitest";
 
 export interface MockBrowser {

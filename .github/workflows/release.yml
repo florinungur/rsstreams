@@ -1,19 +1,8 @@
 name: Release
 
-# Signs and submits a new LISTED version to AMO. This is for versions AFTER the
-# initial listing has been created and approved through the AMO Developer Hub.
-#
-# It does NOT trigger on tag push, so tagging v0.1.0 for the first (manual,
-# Hub-based) submission won't fire it. Trigger it by publishing a GitHub Release
-# (or manually via "Run workflow") once these repository secrets exist:
-#   AMO_JWT_ISSUER  – AMO API key    (JWT issuer)
-#   AMO_JWT_SECRET  – AMO API secret (JWT secret)
-# Create the credentials at https://addons.mozilla.org/developers/addon/api/key/
-# and add them with:  gh secret set AMO_JWT_ISSUER  --repo florinungur/rsstreams
-#                     gh secret set AMO_JWT_SECRET --repo florinungur/rsstreams
-#
-# Each run must carry a new version: bump `version` in package.json (WXT copies
-# it into the manifest) before publishing the release.
+# Signs and submits a listed version to AMO. Needs the AMO_JWT_ISSUER and
+# AMO_JWT_SECRET secrets (https://addons.mozilla.org/developers/addon/api/key/)
+# and a package.json version AMO hasn't seen.
 
 on:
   release:

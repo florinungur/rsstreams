@@ -1,11 +1,6 @@
-/* Popup styling: row layout, copy-button flash states, dark-mode variants
-   via `prefers-color-scheme`. Kept system-font + minimal so Firefox's
-   default look bleeds through. */
-
 :root {
     color-scheme: light dark;
 
-    /* Light tokens (default). Overridden in the dark block below. */
     --bg: #ffffff;
     --fg: #0c0c0d;
     --fg-muted: #5b5b66;

@@ -1,24 +1,7 @@
-// Nightly selector canary. Re-fetches live YouTube HTML and asserts that both
-// extraction paths still work:
-//   - the ytInitialData JSON parser (`parseChannelInfo` / `parsePlaylistsTab`),
-//     the primary path used in the extension, and
-//   - the DOM selector chain (`selfTest`), the fallback path.
-// When YouTube ships a layout change that breaks a path, this flips to red and
-// the selector-canary workflow opens a GitHub issue – early warning before
-// users hit an empty popup.
-//
-// Failure classes:
-//   - Skip (job stays green, warning annotation): transient fetch trouble –
-//     HTTP 429, HTTP 5xx after retries, network-level errors (ECONNRESET, DNS,
-//     TLS), and per-fetch timeouts. Infrastructure noise, not a regression.
-//   - Fail (job red, issue filed): other 4xx (403 = runner bot-blocked, 404 =
-//     fixture rot – both need a human) and assertion failures (real
-//     parser/selector regressions).
-// Run via `pnpm test:canary` (NOT the unit suite).
-//
-// This file is intentionally named `*.ts` (not `*.test.ts`) so the default
-// vitest config never picks it up; vitest.canary.config.ts includes it
-// explicitly.
+// Live-YouTube check of the ytInitialData parser and the DOM selector chain.
+// Transient fetch trouble (429, 5xx, network errors, timeouts) skips; other
+// 4xx and assertion failures fail and file an issue. Named without `.test` so
+// the unit suite skips it; vitest.canary.config.ts includes it.
 
 import { describe, expect, it, type TestContext } from "vitest";
 import {
@@ -36,16 +19,9 @@ const FETCH_TIMEOUT_MS = 20_000;
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-// The fetch stayed unavailable after all retries – 429, 5xx, or a
-// network-level error. That's infrastructure noise (rate limiting, outage, a
-// bot-block surfacing as 429/503 – the 403 form stays fail-class below), not a
-// layout change. Tests skip on this instead of failing so the canary workflow
-// only files issues for real selector/parser regressions. The message carries
-// the cause (HTTP status or network error).
+// A transient fetch failure after every retry; tests skip on it.
 class FetchUnavailableError extends Error {}
 
-// The `response` argument is absent for network-level errors – no Retry-After
-// to honor, so they always take the exponential branch.
 function retryDelayMs(attempt: number, response?: Response): number {
     // Honor Retry-After when present (delta-seconds or HTTP-date per RFC 9110).
     const header = response?.headers.get("retry-after");
@@ -77,21 +53,14 @@ async function fetchYouTube(path: string): Promise<string> {
                     "Accept-Language": "en-US,en;q=0.5",
                     Cookie: "CONSENT=YES+",
                 },
-                // A stalled fetch counts as a network-level (skip-class) error:
-                // AbortSignal.timeout rejects with TimeoutError, caught below.
                 signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             });
             if (response.ok) {
-                // Body read stays inside the try: fetch() resolves once headers
-                // arrive, so a mid-body reset or timeout rejects here with the
-                // same network-class errors (TypeError: terminated,
-                // TimeoutError) – retry, don't fail the test.
+                // A body read can fail the same transient ways, so it stays
+                // inside the try.
                 return await response.text();
             }
         } catch (error) {
-            // Network-level rejection (ECONNRESET, DNS, TLS), per-fetch
-            // timeout, or mid-body failure: same transient class as 429/5xx –
-            // backoff and retry.
             lastCause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
             if (attempt === MAX_ATTEMPTS) {
                 throw new FetchUnavailableError(
@@ -119,9 +88,6 @@ async function fetchYouTube(path: string): Promise<string> {
     throw new FetchUnavailableError(`GET ${path} -> ${lastCause}`); // unreachable; satisfies the type checker
 }
 
-// The `ctx.skip` call shows up as a skipped test (vitest still exits 0), so a
-// night with transient fetch trouble stays green while real failures keep
-// failing the job.
 async function fetchYouTubeOrSkip(ctx: TestContext, path: string): Promise<string> {
     try {
         return await fetchYouTube(path);
@@ -170,13 +136,9 @@ describe("selector canary (live YouTube)", () => {
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, `/channel/${CHANNEL_ID}/playlists`);
-        // YouTube sometimes serves this tab with no playlist entries at all –
-        // an empty shell that parses fine everywhere else. Asserting on it
-        // would blame the parser for a page that never carried the data, so
-        // the absence of any playlist link makes this skip-class. A stripped
-        // page has no `list=PL` anywhere; a layout change that renames JSON
-        // keys still leaves the user-visible playlist URLs in the markup, so
-        // that case still fails below.
+        // YouTube sometimes serves this tab with no playlists. A JSON key rename
+        // still leaves `list=PL` links in the markup, so only a page with none
+        // skips.
         if (!/list=PL/.test(html)) {
             ctx.skip("playlists tab served without any playlist entries");
         }

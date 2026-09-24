@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Regenerate public/icon/*.png from assets/icon.svg.
-# Requires `brew install librsvg`.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

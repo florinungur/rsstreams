@@ -1,11 +1,6 @@
-// End-to-end suite: install the built extension in stock Firefox, drive the
-// real popup against locally-served YouTube fixtures, and assert it renders the
-// expected feed rows and copies the right URL to the clipboard.
-//
-// The popup can't be opened via a toolbar click in automated Firefox, so we
-// navigate directly to `moz-extension://<fixed-uuid>/popup.html` (the UUID is
-// pinned via a profile pref) and pass `?tabId=<content tab>` so the popup
-// injects `extract-channel.js` into the fixture tab instead of itself.
+// Automated Firefox can't click the toolbar button, so the suite opens
+// `moz-extension://<fixed-uuid>/popup.html` directly and passes `?tabId=` so
+// the popup injects into the fixture tab rather than itself.
 
 import { strict as assert } from "node:assert";
 import { after, before, describe, it } from "node:test";
