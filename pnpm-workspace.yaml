@@ -1,8 +1,3 @@
-# pnpm 11+ uses this file for both workspace and project-level config.
-# Single-package "workspace" – `packages` must be present for pnpm to parse the file as a config source.
-packages:
-  - "."
-
 # Supply-chain hardening – complements ~/.config/pnpm/config.yaml (ignoreScripts).
 
 # Fail when peer deps are missing or incompatible.
