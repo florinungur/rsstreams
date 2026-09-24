@@ -1,16 +1,10 @@
 name: Selector canary
 
-# Nightly probe that re-fetches live YouTube and checks the ytInitialData parser
-# + DOM selector chain still resolve a channel. Two outcome classes:
-#   - Skip (green + warning annotation): transient fetch trouble – 429, 5xx
-#     after retries, network errors, per-fetch timeouts. No issue filed.
-#   - Fail (red + a single tracking issue): parser/selector regressions and
-#     durable fetch problems (403 bot-block, 404 fixture rot) – needs a human.
-# See test/selector-canary.ts.
+# Nightly live-YouTube check of the parser and selector chain; see
+# test/selector-canary.ts.
 
 on:
   schedule:
-    # 06:00 UTC daily.
     - cron: "0 6 * * *"
   workflow_dispatch:
 
@@ -25,9 +19,8 @@ concurrency:
 jobs:
   canary:
     runs-on: ubuntu-latest
-    # Headroom for a total-outage night: 4 tests × ~170s worst case plus
-    # install/prepare. A job killed by this timeout is cancelled, not failed,
-    # so the issue step below wouldn't run.
+    # A timeout cancels the job rather than failing it, so the issue step
+    # never runs; keep this above the canary's worst case.
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -45,9 +38,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The root tsconfig.json extends ./.wxt/tsconfig.json, which only exists
-      # after `wxt prepare`. Without it the oxc transform aborts before any test
-      # runs (Tsconfig not found). The build and e2e jobs do the same.
       - name: Generate WXT types
         run: pnpm wxt:prepare
 
@@ -59,8 +49,6 @@ jobs:
       - name: Warn when tests were skipped due to fetch trouble
         if: success()
         run: |
-          # Match the vitest summary line, not any occurrence of "skipped" –
-          # pnpm banners could false-positive on a bare grep.
           if grep -qE "Tests .* skipped" canary.log; then
             echo "::warning title=Selector canary::Fetch unavailable (429/5xx/network); skipped tests were NOT verified tonight. Persistent skips mean the canary is blind – consider a different fetch strategy."
           fi
@@ -77,10 +65,6 @@ jobs:
             --force
           existing=$(gh issue list --label selector-canary --state open --json number --jq 'length')
           if [ "$existing" = "0" ]; then
-            # Put the actual failure in the body so the issue doesn't claim a
-            # layout change when the log says 403/404. The job can fail before
-            # the run step (install, wxt prepare), so guard on the log existing;
-            # `|| true` stops a no-match grep killing the step under `set -e`.
             errors=""
             if [ -f canary.log ]; then
               errors=$(grep -E "FAIL|Error:" canary.log | head -5 || true)

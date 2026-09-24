@@ -108,9 +108,6 @@ jobs:
         with:
           firefox-version: latest
 
-      # Builds the --mode e2e variant, then drives stock Firefox headlessly via
-      # Selenium (Selenium Manager auto-resolves geckodriver). No xvfb needed –
-      # headless Firefox runs without a display server.
       - name: E2E (Selenium + stock Firefox)
         run: pnpm e2e
         env:

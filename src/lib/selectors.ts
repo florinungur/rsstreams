@@ -1,26 +1,9 @@
-// Selector chain for parse-channel-info's DOM fallback path, plus a self-test
-// helper that the nightly selector-canary workflow uses to detect when
-// YouTube ships a layout change. The chain is intentionally shallow –
-// ytInitialData is the primary path and covers ~all healthy pages – but we
-// still keep multiple DOM probes because Mozilla's add-on review reads the
-// source.
-//
-// Layout notes (verified 2026-05-27 against captured fixtures):
-//   - Channel + handle pages expose `<meta itemprop="identifier"
-//     content="UC…">` and `<meta itemprop="name" content="…">` from the
-//     microformat block; both are stable across the SPA reload.
-//   - The legacy `ytd-channel-name` web component is gone from current
-//     YouTube but kept in the chain as a "we'd notice if it comes back"
-//     marker.
-//   - Watch + playlist pages do NOT expose channelId in microdata; that path
-//     stays JSON-only.
+// DOM fallback for parse-channel-info. Channel and handle pages carry
+// `<meta itemprop="identifier">` and `<meta itemprop="name">`; watch and
+// playlist pages carry no channel microdata and resolve through ytInitialData.
 
 import { type ChannelId, isChannelId } from "./youtube-ids";
 
-/**
- * Selectors that yield a `UC…` channel ID when one is present in the DOM.
- * Order: most-specific microdata first, legacy Polymer last.
- */
 export const CHANNEL_ID_SELECTORS: ReadonlyArray<{
     name: string;
     selector: string;
@@ -34,11 +17,8 @@ export const CHANNEL_ID_SELECTORS: ReadonlyArray<{
     {
         name: "link-itemprop-url-channel",
         selector: 'link[itemprop="url"]',
-        // The owner @handle URL appears as a `<link itemprop="url">`; the
-        // canonical channel URL appears as another `<link itemprop="url">`
-        // whose href is `https://www.youtube.com/channel/UC…`. We accept
-        // either – matching only the `/channel/UC…` shape filters out the
-        // @handle variant.
+        // Reads the first `link[itemprop=url]` only; an @handle href there
+        // yields nothing.
         extract: (el) => extractChannelIdFromHref(el.getAttribute("href")),
     },
     {
@@ -48,9 +28,6 @@ export const CHANNEL_ID_SELECTORS: ReadonlyArray<{
     },
 ];
 
-/**
- * Selectors that yield the channel title (display name).
- */
 export const CHANNEL_TITLE_SELECTORS: ReadonlyArray<{
     name: string;
     selector: string;
@@ -68,12 +45,6 @@ export const CHANNEL_TITLE_SELECTORS: ReadonlyArray<{
     },
 ];
 
-/**
- * Run every selector against `doc` and return the first non-empty UC… ID.
- * The selectors module is the only place that touches the DOM directly;
- * `parse-channel-info.ts` uses it as the fallback when ytInitialData is
- * absent or incomplete.
- */
 export function extractDomChannel(doc: Document): ChannelId | null {
     for (const probe of CHANNEL_ID_SELECTORS) {
         const el = doc.querySelector(probe.selector);
@@ -109,12 +80,7 @@ export interface SelfTestResult {
     healthy: boolean;
 }
 
-/**
- * Run every selector against the given HTML string and report per-probe
- * outcomes. The nightly selector-canary workflow re-fetches live YouTube
- * HTML, calls this against each page, and opens a GitHub issue when
- * `healthy` flips to false – early warning that the chain needs widening.
- */
+/** Per-probe results for the nightly selector canary. */
 export function selfTest(html: string): SelfTestResult {
     const doc = parseHtml(html);
     const channelId = CHANNEL_ID_SELECTORS.map((probe) => probeOnce(doc, probe, "UC"));
@@ -141,9 +107,6 @@ function probeOnce(
 }
 
 function parseHtml(html: string): Document {
-    // jsdom's DOMParser is available under vitest's jsdom environment; in the
-    // extension runtime it's the browser's native DOMParser. Both behave the
-    // same for our microdata-only probes.
     return new DOMParser().parseFromString(html, "text/html");
 }
 

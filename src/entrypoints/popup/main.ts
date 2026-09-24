@@ -9,11 +9,6 @@ export interface InitOptions {
     copy: (text: string) => Promise<void>;
 }
 
-/**
- * Render the popup's feed rows for a known `ChannelInfo`. Used after
- * `fetchChannelInfo` resolves; kept as a pure synchronous function so unit
- * tests don't have to await the fetch.
- */
 export function init(container: HTMLElement, options: InitOptions): void {
     const rows = buildFeeds(options.info);
     renderFeedList(container, rows, { copy: options.copy });
@@ -24,12 +19,6 @@ export interface BootOptions {
     copy: (text: string) => Promise<void>;
 }
 
-/**
- * Mount the popup. Calls `fetchChannelInfo` (which in the production boot path
- * is `browser.scripting.executeScript({ files: ['extract-channel.js'] })`),
- * then renders either feed rows or an empty-state message when the current
- * page isn't a YouTube channel/handle/watch/playlist URL.
- */
 export async function boot(container: HTMLElement, options: BootOptions): Promise<void> {
     let info: ChannelInfo | null = null;
     try {
@@ -76,13 +65,7 @@ function renderEmpty(container: HTMLElement): void {
     container.appendChild(p);
 }
 
-/**
- * Read a `?tabId=N` override from the popup URL. Returns the parsed tab id, or
- * `undefined` when the param is absent or malformed. The override lets the
- * Selenium E2E suite (and manual debugging) point the popup at a specific tab,
- * since a popup opened as a `moz-extension://…/popup.html` page can't rely on
- * `tabs.query({ active: true })` resolving to the underlying YouTube tab.
- */
+// Lets the E2E suite target a tab: a popup opened by URL is itself the active tab.
 function tabIdOverride(): number | undefined {
     const raw = new URLSearchParams(location.search).get("tabId");
     if (raw === null) return undefined;
@@ -90,12 +73,6 @@ function tabIdOverride(): number | undefined {
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
-/**
- * Inject `extract-channel.js` into the target YouTube tab and return the
- * parsed `ChannelInfo`, or `null` when the page isn't a recognised YouTube
- * URL / the script fails to inject. Targets the `?tabId=` override when
- * present, else the active tab in the current window.
- */
 export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo | null> {
     const override = tabIdOverride();
     let tabId = override;

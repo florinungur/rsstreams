@@ -1,6 +1,3 @@
-// Pure ChannelInfo → FeedRow[] builder. Emits the 4 system feeds (uploads,
-// long-form, Shorts, Live) followed by one row per named playlist.
-
 import {
     type ChannelId,
     channelFeedUrl,
@@ -32,12 +29,6 @@ export interface FeedRow {
     playlistId?: ListId;
 }
 
-/**
- * Build the popup's feed rows for a channel.
- *
- * Order: 4 system feeds (uploads, long-form, Shorts, Live) + N named playlists
- * in the order they appear on the channel page.
- */
 export function buildFeeds(info: ChannelInfo): FeedRow[] {
     const { channelId, playlists } = info;
 

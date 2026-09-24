@@ -1,11 +1,5 @@
-// Serves the captured YouTube HTML fixtures over HTTP on 127.0.0.1 so the
-// Selenium E2E suite can drive a real `extract-channel.js` injection without
-// hitting live YouTube. Routes mirror the YouTube URL shapes the content
-// script touches:
-//   - the channel / watch / playlist page the user is "on", and
-//   - the `/channel/<id>/playlists` tab the script fetches to pull the
-//     canonical playlist grid.
-// Same fixtures the unit tests use; see test/fixtures/README.md.
+// Serves the unit-test fixtures on 127.0.0.1 at the YouTube paths the
+// injected script requests.
 
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";

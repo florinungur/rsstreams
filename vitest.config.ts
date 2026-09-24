@@ -1,8 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-// Mirror the `@/` and `~/` aliases that WXT generates in `.wxt/tsconfig.json`
-// so vitest resolves them the same way the production build does.
+// Mirrors the `@/` and `~/` aliases WXT generates in `.wxt/tsconfig.json`.
 const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 
 export default defineConfig({
@@ -20,9 +19,6 @@ export default defineConfig({
         coverage: {
             provider: "v8",
             reporter: ["text", "lcov"],
-            // Both `src/entrypoints/extract-channel.ts` and
-            // `src/entrypoints/background.ts` are thin shells over WXT
-            // auto-globals; the `entrypoints-smoke` test imports + invokes them.
             include: [
                 "src/lib/**",
                 "src/entrypoints/popup/**",

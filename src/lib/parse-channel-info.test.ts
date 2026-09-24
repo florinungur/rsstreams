@@ -36,8 +36,6 @@ describe("parseChannelInfo – ytInitialData path", () => {
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
         expect(info?.playlists.length).toBeGreaterThan(0);
-        // Named playlists carry real PL-prefixed IDs from the shelfRenderer
-        // browse endpoints; system IDs (UU/UULF/UUSH/UULV) are filtered out.
         for (const playlist of info?.playlists ?? []) {
             expect(playlist.listId).toMatch(/^PL/);
             expect(playlist.name.length).toBeGreaterThan(0);
@@ -58,8 +56,6 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
-        // Watch pages don't expose the channel's named playlists; we surface
-        // the 4 system rows only.
         expect(info?.playlists).toEqual([]);
     });
 
@@ -78,8 +74,6 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
         expect(info?.channelId).toBe("UC9-y-6csu5WGm29I7JiwpnA");
         expect(info?.channelTitle).toBe("Computerphile");
-        // Shorts row absence is handled downstream; parser still returns
-        // a valid ChannelInfo.
     });
 });
 
@@ -184,11 +178,9 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
             expect(p.listId).toMatch(/^PL/);
             expect(p.name.length).toBeGreaterThan(0);
         }
-        // Sanity-check a couple of known entries.
         const names = playlists.map((p) => p.name);
         expect(names).toContain("Reviews!");
         expect(names).toContain("Dope Tech!");
-        // Favorites (FL prefix) and Watch Later (WL) are filtered out.
         expect(playlists.find((p) => p.listId.startsWith("FL"))).toBeUndefined();
     });
 
@@ -1017,10 +1009,6 @@ describe("resolveChannelInfo", () => {
     };
 
     it("re-reads the live DOM when the refetch yields nothing but the page settled mid-await", async () => {
-        // The live document is empty on the first pass, so the fetch fires. The
-        // fetched HTML is a bot-served/consent shell with no usable state, but
-        // an in-flight SPA navigation completes during the await and populates
-        // the live document's microdata – a fresh read now succeeds.
         const doc = emptyDoc();
         const info = await resolveChannelInfo({
             initialYtInitialData: undefined,
@@ -1036,8 +1024,6 @@ describe("resolveChannelInfo", () => {
     });
 
     it("prefers the fetched page over a settled live DOM (SPA-stale escape hatch wins)", async () => {
-        // Even when the live DOM settles mid-await, an authoritative fetched
-        // page must still win – this is the v0.1.1 SPA-stale fix.
         const doc = emptyDoc();
         const info = await resolveChannelInfo({
             initialYtInitialData: undefined,

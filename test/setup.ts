@@ -1,11 +1,4 @@
-// Vitest setup: register the WXT auto-imports as identity functions so the
-// entrypoint modules (`background.ts`, `extract-channel.ts`) can be imported
-// in unit tests under jsdom without a real WXT runtime.
-//
-// `defineBackground(fn)` and `defineUnlistedScript(fn)` are normally injected
-// by WXT at build time. Their runtime contract is "return the spec / function
-// unchanged so the bundler can wire it in" – an identity function matches the
-// contract for test purposes.
+// Identity stubs for the WXT build-time globals, so entrypoints import under jsdom.
 
 (globalThis as unknown as { defineBackground: (fn: unknown) => unknown }).defineBackground = (fn) =>
     fn;

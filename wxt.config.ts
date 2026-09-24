@@ -1,6 +1,5 @@
 import { defineConfig } from "wxt";
 
-// See https://wxt.dev/api/config.html
 export default defineConfig({
     srcDir: "src",
     manifestVersion: 3,
@@ -8,13 +7,8 @@ export default defineConfig({
         name: "RSStreams for YouTube",
         description: "Find every RSS/Atom feed for the YouTube page you're on.",
         permissions: ["scripting", "clipboardWrite"],
-        // Production ships youtube.com only. Running `wxt build --mode e2e`
-        // additionally grants 127.0.0.1 so the Selenium suite can inject
-        // `extract-channel.js` into a locally-served fixture page (executeScript
-        // needs a host-permission match). The widened build lands in
-        // `.output/firefox-mv3-e2e/` and is for tests only – never submitted to
-        // AMO. The Phase 6 release build runs the default (production) mode and
-        // stays youtube.com-only.
+        // The e2e mode adds 127.0.0.1 so the Selenium suite can inject into
+        // local fixtures; release builds never use it.
         host_permissions:
             mode === "e2e"
                 ? ["https://www.youtube.com/*", "http://127.0.0.1/*"]
@@ -22,11 +16,10 @@ export default defineConfig({
         browser_specific_settings: {
             gecko: {
                 id: "rsstreams@florinungur.com",
-                // Firefox 142 is the floor across desktop and Android that
-                // supports `data_collection_permissions` (added 2025-11).
+                // The lowest version with `data_collection_permissions` on
+                // both desktop and Android.
                 strict_min_version: "142.0",
-                // Required for new AMO submissions since 2025-11-03. No data
-                // leaves the browser; declare explicitly.
+                // AMO requires this for new submissions.
                 data_collection_permissions: {
                     required: ["none"],
                 },
@@ -36,14 +29,7 @@ export default defineConfig({
             default_title: "Show feeds for this page",
         },
     }),
-    // The AMO source submission (`wxt zip`) excludes node_modules, dotfiles, and
-    // .output by default. The `coverage/` directory is generated test output and
-    // isn't needed to reproduce the build – keep it out of the sources zip.
     zip: {
-        // The coverage/ directory is generated test output; docs/screenshots/
-        // are AMO listing images. Neither is needed to reproduce the build –
-        // keep both out of the sources zip so the source submission stays
-        // code-only and small.
         excludeSources: ["coverage/**", "docs/screenshots/**"],
     },
 });

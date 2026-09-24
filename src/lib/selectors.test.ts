@@ -36,10 +36,8 @@ describe("DOM extraction – channelId", () => {
     });
 
     it("falls through when meta identifier is not a UC ID (e.g. watch page videoId)", () => {
-        // The mkbhd-watch.html fixture's first identifier meta is the video
-        // ID, not a channel ID. The link[itemprop=url] fallback should
-        // still catch the @handle URL... but the @handle URL is not
-        // /channel/UC… so the fallback also misses. Result: null.
+        // The watch fixture's identifier meta holds a video ID and its first url
+        // link is the video, so every probe misses.
         const doc = parseHtml(loadFixture("mkbhd-watch.html"));
         expect(extractDomChannel(doc)).toBeNull();
     });
@@ -149,12 +147,10 @@ describe("selfTest", () => {
         expect(result.channelId).toHaveLength(CHANNEL_ID_SELECTORS.length);
         expect(result.channelTitle).toHaveLength(CHANNEL_TITLE_SELECTORS.length);
 
-        // The meta-itemprop-identifier probe should hit and yield the UC ID.
         const identifierProbe = result.channelId.find((p) => p.name === "meta-itemprop-identifier");
         expect(identifierProbe?.matched).toBe(true);
         expect(identifierProbe?.value).toBe("UCBJycsmduvYEL83R_U4JriQ");
 
-        // The meta-itemprop-name probe should hit on the title chain.
         const nameProbe = result.channelTitle.find((p) => p.name === "meta-itemprop-name");
         expect(nameProbe?.matched).toBe(true);
         expect(nameProbe?.value).toBe("Marques Brownlee");
@@ -174,9 +170,6 @@ describe("selfTest", () => {
     });
 
     it("reports matched=true but value=null when a selector returns the wrong shape", () => {
-        // A meta[itemprop=identifier] with a non-UC ID (e.g. a video ID on a
-        // watch page) – the selector hits but the value is rejected by the
-        // requiredPrefix gate, leaving matched=true and value=null.
         const html = `<html><body>
             <meta itemprop="identifier" content="dQw4w9WgXcQ">
         </body></html>`;
@@ -187,8 +180,6 @@ describe("selfTest", () => {
     });
 
     it("reports matched=true but value=null when extract returns null", () => {
-        // A meta[itemprop=name] without a content attribute – the selector
-        // matches but extract returns null; the title chain records that.
         const html = `<html><body>
             <meta itemprop="name">
         </body></html>`;

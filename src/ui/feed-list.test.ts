@@ -113,17 +113,13 @@ describe("renderFeedList", () => {
 
         const details = container.querySelector<HTMLDetailsElement>(".feed-list__playlists");
         expect(details).not.toBeNull();
-        // Default closed – playlist channels can have 20+ entries; users want
-        // the 4 system feeds visible first.
         expect(details?.open).toBe(false);
 
         const summary = details?.querySelector("summary.feed-list__heading");
         expect(summary?.tagName).toBe("SUMMARY");
         expect(summary?.textContent).toBe("Playlists (2)");
 
-        // Details should sit after the system-rows group.
         expect(groups[0]?.nextElementSibling).toBe(details);
-        // Playlist group sits inside the details element.
         expect(details?.contains(groups[1] as Element)).toBe(true);
     });
 
