@@ -9,7 +9,7 @@ import {
     parseChannelInfo,
     parsePlaylistsTab,
 } from "@/lib/parse-channel-info";
-import { selfTest } from "@/lib/selectors";
+import { type SelfTestProbeResult, selfTest } from "@/lib/selectors";
 
 const CHANNEL_ID = "UCBJycsmduvYEL83R_U4JriQ"; // Marques Brownlee
 const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
@@ -103,35 +103,53 @@ function parse(html: string): Document {
     return new DOMParser().parseFromString(html, "text/html");
 }
 
+// Names the page YouTube served, so a failure tells a degraded response apart
+// from a layout change.
+function served(doc: Document, html: string): string {
+    return `served "${doc.title}" (${html.length} chars)`;
+}
+
+// Soft, so the ytInitialData checks after it still report on the same response.
+function expectSelectorsHealthy(doc: Document, html: string): void {
+    const result = selfTest(html);
+    const outcome = (p: SelfTestProbeResult) => (p.value ? "ok" : p.matched ? "no-value" : "miss");
+    const probes = [
+        ...result.channelId.map((p) => `id:${p.name}=${outcome(p)}`),
+        ...result.channelTitle.map((p) => `title:${p.name}=${outcome(p)}`),
+    ].join(" ");
+    expect
+        .soft(result.healthy, `DOM selector chain regressed; ${served(doc, html)}; ${probes}`)
+        .toBe(true);
+}
+
 describe("selector canary (live YouTube)", () => {
     it("channel page: DOM self-test + ytInitialData parse resolve the channel", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, `/channel/${CHANNEL_ID}`);
         const doc = parse(html);
 
-        const selectors = selfTest(html);
-        expect(selectors.healthy, "DOM selector chain regressed").toBe(true);
+        expectSelectorsHealthy(doc, html);
 
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc), document: doc });
-        expect(info?.channelId).toBe(CHANNEL_ID);
-        expect((info?.channelTitle ?? "").length).toBeGreaterThan(0);
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
+        expect((info?.channelTitle ?? "").length, served(doc, html)).toBeGreaterThan(0);
     });
 
     it("handle page: DOM self-test + ytInitialData parse resolve the channel", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, "/@MKBHD");
         const doc = parse(html);
 
-        expect(selfTest(html).healthy, "DOM selector chain regressed").toBe(true);
+        expectSelectorsHealthy(doc, html);
 
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc), document: doc });
-        expect(info?.channelId).toBe(CHANNEL_ID);
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
     });
 
     it("watch page: ytInitialData parse resolves the channel (JSON-only path)", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, "/watch?v=_02K6efDLI0");
         const doc = parse(html);
 
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc), document: doc });
-        expect(info?.channelId).toMatch(/^UC/);
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        expect(info?.channelId, served(doc, html)).toMatch(/^UC/);
     });
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {
@@ -142,8 +160,9 @@ describe("selector canary (live YouTube)", () => {
         if (!/list=PL/.test(html)) {
             ctx.skip("playlists tab served without any playlist entries");
         }
-        const playlists = parsePlaylistsTab(extractYtInitialData(parse(html)));
-        expect(playlists.length).toBeGreaterThan(0);
-        expect(playlists[0]?.listId).toMatch(/^PL/);
+        const doc = parse(html);
+        const playlists = parsePlaylistsTab(extractYtInitialData(doc));
+        expect(playlists.length, served(doc, html)).toBeGreaterThan(0);
+        expect(playlists[0]?.listId, served(doc, html)).toMatch(/^PL/);
     });
 });
