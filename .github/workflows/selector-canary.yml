@@ -44,14 +44,20 @@ jobs:
       - name: Run selector canary
         # Pipefail comes from `shell: bash`, so tee can't mask a vitest failure.
         shell: bash
-        run: pnpm test:canary 2>&1 | tee canary.log
+        # Plain text, so the issue body below quotes readable error lines.
+        env:
+          NO_COLOR: "1"
+        # Verbose prints each skipped test with its reason, which the next step reads.
+        # Naming a reporter drops vitest's automatic github-actions one, so it's named too.
+        run: pnpm test:canary --reporter=verbose --reporter=github-actions 2>&1 | tee canary.log
 
-      - name: Warn when tests were skipped due to fetch trouble
+      - name: Warn about skipped tests
         if: success()
         run: |
-          if grep -qE "Tests .* skipped" canary.log; then
-            echo "::warning title=Selector canary::Fetch unavailable (429/5xx/network); skipped tests were NOT verified tonight. Persistent skips mean the canary is blind – consider a different fetch strategy."
-          fi
+          # Verbose marks a skipped test with ↓ and its reason in brackets.
+          grep "↓ " canary.log | while IFS= read -r line; do
+            echo "::warning title=Selector canary skipped a test::${line#*↓ } – NOT verified tonight. Persistent skips mean the canary is blind."
+          done
 
       - name: File an issue on failure
         if: failure()
@@ -67,7 +73,8 @@ jobs:
           if [ "$existing" = "0" ]; then
             errors=""
             if [ -f canary.log ]; then
-              errors=$(grep -E "FAIL|Error:" canary.log | head -5 || true)
+              # Drops vitest's `::error` annotations, URL-encoded copies of the same errors.
+              errors=$(grep -E "FAIL|Error:" canary.log | grep -v "^::" || true)
             fi
             if [ -z "$errors" ]; then
               errors="(no error lines captured – the job may have failed before the canary ran; check the run log)"
