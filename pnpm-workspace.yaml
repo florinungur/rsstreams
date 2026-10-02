@@ -11,7 +11,9 @@ allowBuilds:
   esbuild: true
   spawn-sync: false
 
-# Floors that clear Dependabot alerts on transitive deps.
+# Floors that clear Dependabot alerts on transitive deps. An override replaces the
+# consumer's range, so a raised open floor resolves to the newest release, majors
+# included; cap it where the consumer can't take the next major.
 overrides:
   tmp: ">=0.2.7"
   uuid: ">=11.1.1"
@@ -21,7 +23,6 @@ overrides:
   shell-quote: ">=1.9.0"
   esbuild: ">=0.28.1"
   postcss: ">=8.5.23"
-  # Scoped to 1.x consumers and capped there: an override replaces their range, so an
-  # open floor resolves to the latest major.
+  # Scoped and capped to 1.x, the line minimatch@3 requires.
   brace-expansion@1: "^1.1.21"
   adm-zip: ">=0.6.1"
