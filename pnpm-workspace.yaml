@@ -16,11 +16,12 @@ overrides:
   tmp: ">=0.2.7"
   uuid: ">=11.1.1"
   # Capped below 8: jsdom imports undici/lib/handler/wrap-handler.js, which 8 removed.
-  undici: ">=7.29.0 <8.0.0"
+  undici: ">=7.29.1 <8.0.0"
   vite: ">=8.0.16"
   shell-quote: ">=1.9.0"
   esbuild: ">=0.28.1"
   postcss: ">=8.5.23"
-  # Scoped to the 1.x line: 2.x consumers are unaffected and can't satisfy a 1.1.16 floor.
-  brace-expansion@1: ">=1.1.16"
+  # Scoped to 1.x consumers and capped there: an override replaces their range, so an
+  # open floor resolves to the latest major.
+  brace-expansion@1: "^1.1.21"
   adm-zip: ">=0.6.1"
