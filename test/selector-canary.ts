@@ -162,12 +162,6 @@ describe("selector canary (live YouTube)", () => {
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, `/channel/${CHANNEL_ID}/playlists`);
-        // YouTube sometimes serves this tab with no playlists. A JSON key rename
-        // still leaves `list=PL` links in the markup, so only a page with none
-        // skips.
-        if (!/list=PL/.test(html)) {
-            ctx.skip("playlists tab served without any playlist entries");
-        }
         const doc = parse(html);
         const playlists = parsePlaylistsTab(extractYtInitialData(doc));
         expect(playlists.length, served(doc, html)).toBeGreaterThan(0);
