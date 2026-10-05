@@ -149,7 +149,7 @@ describe("selector canary (live YouTube)", () => {
         const doc = parse(html);
 
         const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
-        expect(info?.channelId, served(doc, html)).toMatch(/^UC/);
+        expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
     });
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {
