@@ -482,7 +482,7 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
     });
 });
 
-describe("extractYtInitialData – inline-script fallback", () => {
+describe("extractYtInitialData", () => {
     it("recovers ytInitialData from a captured handle page's inline script", () => {
         const doc = parseHtmlToDocument(loadFixture("mkbhd-handle.html"));
         const data = extractYtInitialData(doc) as {
@@ -498,6 +498,23 @@ describe("extractYtInitialData – inline-script fallback", () => {
         const data = extractYtInitialData(doc);
         expect(data).not.toBeNull();
         expect(typeof data).toBe("object");
+    });
+
+    it("reads ytInitialData from the JSON script element when the page has no inline marker", () => {
+        const doc = parseHtmlToDocument(loadFixture("mkbhd-watch-json-script.html"));
+        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
+        expect(info?.channelTitle).toBe("Marques Brownlee");
+    });
+
+    it("falls back to the inline marker when the JSON script element doesn't parse", () => {
+        const doc = parseHtmlToDocument(
+            `<html><body>
+                <script id="yt-initial-data" type="application/json">{not valid json</script>
+                <script>var ytInitialData = {"channelId":"UCFOUND"};</script>
+            </body></html>`,
+        );
+        expect(extractYtInitialData(doc)).toEqual({ channelId: "UCFOUND" });
     });
 
     it("returns null when no script carries the marker", () => {

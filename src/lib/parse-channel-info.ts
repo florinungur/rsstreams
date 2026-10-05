@@ -258,7 +258,20 @@ export async function resolveChannelInfo(
     return parseChannelInfo({ document: deps.document });
 }
 
+/**
+ * YouTube serves ytInitialData either as a `<script id="yt-initial-data"
+ * type="application/json">` element or inline as `var ytInitialData = {…}`.
+ */
 export function extractYtInitialData(doc: Document): unknown {
+    const json = doc.getElementById("yt-initial-data")?.textContent;
+    if (json) {
+        try {
+            return JSON.parse(json);
+        } catch {
+            // Fall through to the inline form.
+        }
+    }
+
     const MARKER = "var ytInitialData = ";
     const scripts = doc.querySelectorAll("script");
     for (const script of scripts) {
