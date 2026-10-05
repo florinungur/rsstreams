@@ -46,12 +46,12 @@ async function fetchYouTube(path: string): Promise<string> {
         try {
             response = await fetch(`https://www.youtube.com${path}`, {
                 headers: {
-                    // Mimic real Firefox so YouTube serves the same markup (and keeps
-                    // ytInitialData inline). The CONSENT cookie suppresses the EU
-                    // interstitial, which otherwise strips ytInitialData.
+                    // Mimic real Firefox so YouTube serves the same markup. The
+                    // SOCS cookie answers the consent prompt, so EU and UK
+                    // requests skip the consent.youtube.com redirect.
                     "User-Agent": USER_AGENT,
                     "Accept-Language": "en-US,en;q=0.5",
-                    Cookie: "CONSENT=YES+",
+                    Cookie: "SOCS=CAI",
                 },
                 signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             });

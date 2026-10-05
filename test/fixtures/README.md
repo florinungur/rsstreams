@@ -34,7 +34,7 @@ capture() {
     curl -sSL -o "$name" \
       -A "$UA" \
       -H "Accept-Language: en-US,en;q=0.5" \
-      -H "Cookie: CONSENT=YES+" \
+      -H "Cookie: SOCS=CAI" \
       "$url" &&
       grep -q '<title>' "$name" && grep -qF "$marker" "$name" && return
     sleep 1
@@ -55,8 +55,8 @@ capture "https://www.youtube.com/watch?v=_02K6efDLI0" \
   mkbhd-watch-json-script.html 'id="yt-initial-data"'
 ```
 
-The `CONSENT=YES+` cookie suppresses the EU consent interstitial, which
-otherwise strips `ytInitialData` from the response.
+The `SOCS=CAI` cookie answers YouTube's consent prompt, so captures
+from the EU and UK skip the `consent.youtube.com` redirect.
 
 The HTML files are excluded from `oxfmt` via `.prettierignore` – they
 must round-trip byte-for-byte to remain valid fixtures.
