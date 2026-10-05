@@ -46,19 +46,27 @@ async function fetchYouTube(path: string): Promise<string> {
         try {
             response = await fetch(`https://www.youtube.com${path}`, {
                 headers: {
-                    // Mimic real Firefox so YouTube serves the same markup (and keeps
-                    // ytInitialData inline). The CONSENT cookie suppresses the EU
-                    // interstitial, which otherwise strips ytInitialData.
+                    // Mimic real Firefox so YouTube serves the same markup. The
+                    // SOCS cookie answers the consent prompt, so EU and UK
+                    // requests skip the consent.youtube.com redirect.
                     "User-Agent": USER_AGENT,
                     "Accept-Language": "en-US,en;q=0.5",
-                    Cookie: "CONSENT=YES+",
+                    Cookie: "SOCS=CAI",
                 },
                 signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             });
             if (response.ok) {
                 // A body read can fail the same transient ways, so it stays
                 // inside the try.
-                return await response.text();
+                const html = await response.text();
+                // YouTube sometimes serves an empty shell (no <title>, and
+                // ytInitialData with only responseContext) for its client JS to
+                // fill in. The last attempt returns it, so the assertions fail on it.
+                if (html.includes("<title>") || attempt === MAX_ATTEMPTS) {
+                    return html;
+                }
+                await sleep(retryDelayMs(attempt));
+                continue;
             }
         } catch (error) {
             lastCause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
@@ -149,17 +157,11 @@ describe("selector canary (live YouTube)", () => {
         const doc = parse(html);
 
         const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
-        expect(info?.channelId, served(doc, html)).toMatch(/^UC/);
+        expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
     });
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {
         const html = await fetchYouTubeOrSkip(ctx, `/channel/${CHANNEL_ID}/playlists`);
-        // YouTube sometimes serves this tab with no playlists. A JSON key rename
-        // still leaves `list=PL` links in the markup, so only a page with none
-        // skips.
-        if (!/list=PL/.test(html)) {
-            ctx.skip("playlists tab served without any playlist entries");
-        }
         const doc = parse(html);
         const playlists = parsePlaylistsTab(extractYtInitialData(doc));
         expect(playlists.length, served(doc, html)).toBeGreaterThan(0);
