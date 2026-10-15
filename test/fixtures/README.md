@@ -1,8 +1,6 @@
 # Test fixtures
 
-Verbatim HTML captures of public YouTube pages, used by the
-`parseChannelInfo` and `selectors` unit tests. Capture dates:
-`git log --format=%as -- <file>`.
+Verbatim HTML captures of public YouTube pages, used by the `parseChannelInfo` and `selectors` unit tests. Capture dates: `git log --format=%as -- <file>`.
 
 The capture script below is the single source for the URL ↔ file mapping.
 
@@ -18,9 +16,7 @@ The capture script below is the single source for the URL ↔ file mapping.
 
 ## Re-capturing
 
-The nightly selector-canary workflow re-fetches live HTML at runtime
-and fails when the selector chain comes back empty. When that happens,
-re-run the capture so the unit tests track the new shape:
+The nightly selector-canary workflow re-fetches live HTML at runtime and fails when the selector chain comes back empty. When that happens, re-run the capture so the unit tests track the new shape:
 
 ```bash
 cd test/fixtures
@@ -55,8 +51,6 @@ capture "https://www.youtube.com/watch?v=_02K6efDLI0" \
   mkbhd-watch-json-script.html 'id="yt-initial-data"'
 ```
 
-The `SOCS=CAI` cookie answers YouTube's consent prompt, so captures
-from the EU and UK skip the `consent.youtube.com` redirect.
+The `SOCS=CAI` cookie answers YouTube's consent prompt, so captures from the EU and UK skip the `consent.youtube.com` redirect.
 
-The HTML files are excluded from `oxfmt` via `.prettierignore` – they
-must round-trip byte-for-byte to remain valid fixtures.
+The HTML files are excluded from `oxfmt` via `.prettierignore` – they must round-trip byte-for-byte to remain valid fixtures.
