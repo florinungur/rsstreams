@@ -341,6 +341,39 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
         expect(parsePlaylistsTab(data)).toEqual([]);
     });
 
+    it("keeps Show lockups, which carry PL playlist ids", () => {
+        const data = {
+            contents: {
+                twoColumnBrowseResultsRenderer: {
+                    tabs: [
+                        {
+                            tabRenderer: {
+                                content: {
+                                    sectionListRenderer: {
+                                        contents: [
+                                            {
+                                                lockupViewModel: {
+                                                    contentType: "LOCKUP_CONTENT_TYPE_SHOW",
+                                                    contentId: "PLSHOW001",
+                                                    metadata: {
+                                                        lockupMetadataViewModel: {
+                                                            title: { content: "A Show" },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        expect(parsePlaylistsTab(data)).toEqual([{ listId: "PLSHOW001", name: "A Show" }]);
+    });
+
     it("skips lockups whose contentId is missing a PL prefix", () => {
         const data = {
             contents: {
