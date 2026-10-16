@@ -19,7 +19,10 @@ declare global {
 
 async function fetchPlaylistsTab(channelId: string): Promise<unknown> {
     const url = `/channel/${channelId}/playlists`;
-    const response = await fetch(url, { credentials: "same-origin" });
+    const response = await fetch(url, {
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(10_000),
+    });
     if (!response.ok) return null;
     const html = await response.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -35,21 +38,25 @@ async function fetchCurrentPage(): Promise<string | null> {
     return response.text();
 }
 
-export default defineUnlistedScript(async (): Promise<ChannelInfo | null> => {
-    await whenDocumentReady(document);
+// A missing navigation entry counts as navigated: a needless refetch costs
+// time and can fail, a stale read shows another channel's feeds.
+function navigatedSinceLoad(): boolean {
+    const [entry] = performance.getEntriesByType("navigation");
+    if (!entry) return true;
+    return pageKey(entry.name) !== pageKey(location.href);
+}
 
-    const initialYtInitialData =
-        window.ytInitialData ??
-        window.wrappedJSObject?.ytInitialData ??
-        extractYtInitialData(document);
+// Only the path, `v`, and `list` pick the page; YouTube rewrites other query
+// parameters in place.
+function pageKey(href: string): string {
+    const url = new URL(href);
+    const params = url.searchParams;
+    return [url.pathname, params.get("v"), params.get("list")].join("|");
+}
 
-    const info = await resolveChannelInfo({
-        initialYtInitialData,
-        document,
-        fetchCurrentPage,
-    });
-    if (!info) return null;
-
+// The Playlists tab holds the full list; the page itself carries at most the
+// Home-tab shelves.
+async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {
     try {
         const tabData = await fetchPlaylistsTab(info.channelId);
         const fullPlaylists = parsePlaylistsTab(tabData);
@@ -60,4 +67,21 @@ export default defineUnlistedScript(async (): Promise<ChannelInfo | null> => {
         // Keep the playlists the page itself carried.
     }
     return info;
+}
+
+export default defineUnlistedScript(async (): Promise<ChannelInfo[]> => {
+    await whenDocumentReady(document);
+
+    const initialYtInitialData =
+        window.ytInitialData ??
+        window.wrappedJSObject?.ytInitialData ??
+        extractYtInitialData(document);
+
+    const channels = await resolveChannelInfo({
+        navigatedSinceLoad: navigatedSinceLoad(),
+        initialYtInitialData,
+        document,
+        fetchCurrentPage,
+    });
+    return Promise.all(channels.map(withPlaylistsTab));
 });

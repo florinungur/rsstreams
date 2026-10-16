@@ -9,30 +9,24 @@ export interface ParseChannelInfoInput {
     document?: Document;
 }
 
-export function parseChannelInfo(input: ParseChannelInfoInput): ChannelInfo | null {
+/** Every channel the page belongs to: one, or each collaborator on a collab video. */
+export function parseChannelInfo(input: ParseChannelInfoInput): ChannelInfo[] {
     const fromJson = parseFromYtInitialData(input.ytInitialData);
-    if (fromJson) return fromJson;
+    if (fromJson.length > 0) return fromJson;
 
     if (input.document) {
         const fromDom = parseFromDom(input.document);
-        if (fromDom) return fromDom;
+        if (fromDom) return [fromDom];
     }
 
-    return null;
+    return [];
 }
 
-function parseFromYtInitialData(ytInitialData: unknown): ChannelInfo | null {
-    if (!isRecord(ytInitialData)) return null;
-
-    const owner = findChannelOwner(ytInitialData);
-    if (!owner) return null;
+function parseFromYtInitialData(ytInitialData: unknown): ChannelInfo[] {
+    if (!isRecord(ytInitialData)) return [];
 
     const playlists = findNamedPlaylists(ytInitialData);
-    return {
-        channelId: owner.channelId,
-        channelTitle: owner.channelTitle,
-        playlists,
-    };
+    return findChannelOwners(ytInitialData).map((owner) => ({ ...owner, playlists }));
 }
 
 interface OwnerHit {
@@ -40,44 +34,85 @@ interface OwnerHit {
     channelTitle: string;
 }
 
-function findChannelOwner(data: Record<string, unknown>): OwnerHit | null {
+function findChannelOwners(data: Record<string, unknown>): OwnerHit[] {
     // Channel / handle / browse pages keep the owner in metadata.
     const metadata = readPath(data, ["metadata", "channelMetadataRenderer"]);
     if (isRecord(metadata)) {
         const channelId = pickString(metadata["externalId"]);
         const channelTitle = pickString(metadata["title"]);
         if (channelId && channelTitle && isChannelId(channelId)) {
-            return { channelId, channelTitle };
+            return [{ channelId, channelTitle }];
         }
     }
 
     // Watch + playlist pages bury the owner in a deep `videoOwnerRenderer`.
-    return findVideoOwner(data);
+    return findVideoOwners(data);
 }
 
-function findVideoOwner(node: unknown): OwnerHit | null {
+function findVideoOwners(node: unknown): OwnerHit[] {
     if (isRecord(node)) {
         const renderer = node["videoOwnerRenderer"];
         if (isRecord(renderer)) {
-            const channelId = pickString(
-                readPath(renderer, ["navigationEndpoint", "browseEndpoint", "browseId"]),
-            );
-            const channelTitle = pickFirstRun(renderer["title"]);
-            if (channelId && channelTitle && isChannelId(channelId)) {
-                return { channelId, channelTitle };
-            }
+            const owners = readVideoOwners(renderer);
+            if (owners.length > 0) return owners;
         }
         for (const value of Object.values(node)) {
-            const hit = findVideoOwner(value);
-            if (hit) return hit;
+            const hits = findVideoOwners(value);
+            if (hits.length > 0) return hits;
         }
     } else if (Array.isArray(node)) {
         for (const value of node) {
-            const hit = findVideoOwner(value);
-            if (hit) return hit;
+            const hits = findVideoOwners(value);
+            if (hits.length > 0) return hits;
         }
     }
-    return null;
+    return [];
+}
+
+/**
+ * A single owner links straight to its channel. A collab video links a
+ * "Collaborators" dialog instead, listing every channel with the uploader first.
+ */
+function readVideoOwners(renderer: Record<string, unknown>): OwnerHit[] {
+    const channelId = pickString(
+        readPath(renderer, ["navigationEndpoint", "browseEndpoint", "browseId"]),
+    );
+    const channelTitle = pickFirstRun(renderer["title"]);
+    if (channelId && channelTitle && isChannelId(channelId)) {
+        return [{ channelId, channelTitle }];
+    }
+
+    const items = readPath(renderer, [
+        "navigationEndpoint",
+        "showDialogCommand",
+        "panelLoadingStrategy",
+        "inlineContent",
+        "dialogViewModel",
+        "customContent",
+        "listViewModel",
+        "listItems",
+    ]);
+    if (!Array.isArray(items)) return [];
+
+    const owners: OwnerHit[] = [];
+    for (const item of items) {
+        const title = readPath(item, ["listItemViewModel", "title"]);
+        const collaboratorId = pickString(
+            readPath(title, [
+                "commandRuns",
+                0,
+                "onTap",
+                "innertubeCommand",
+                "browseEndpoint",
+                "browseId",
+            ]),
+        );
+        const collaboratorTitle = pickString(readPath(title, ["content"]));
+        if (collaboratorId && collaboratorTitle && isChannelId(collaboratorId)) {
+            owners.push({ channelId: collaboratorId, channelTitle: collaboratorTitle });
+        }
+    }
+    return owners;
 }
 
 function findNamedPlaylists(data: Record<string, unknown>): NamedPlaylist[] {
@@ -219,6 +254,12 @@ export function whenDocumentReady(doc: Document, timeoutMs = 2000): Promise<void
 }
 
 export interface ResolveChannelInfoDeps {
+    /**
+     * True when the page changed after the document loaded. YouTube's SPA
+     * navigation keeps the first-loaded page's ytInitialData and microdata,
+     * so the live sources would describe that page instead.
+     */
+    navigatedSinceLoad: boolean;
     /** Snapshot of `ytInitialData` from the live page (window/wrappedJSObject/inline-script). */
     initialYtInitialData: unknown;
     /** Live document used for DOM-microdata fallback. */
@@ -227,34 +268,31 @@ export interface ResolveChannelInfoDeps {
     fetchCurrentPage: () => Promise<string | null>;
 }
 
-/**
- * Refetches the current URL when the live document yields nothing: YouTube's
- * SPA navigation doesn't refresh the inline ytInitialData.
- */
-export async function resolveChannelInfo(
-    deps: ResolveChannelInfoDeps,
-): Promise<ChannelInfo | null> {
-    const local = parseChannelInfo({
-        ytInitialData: deps.initialYtInitialData,
-        document: deps.document,
-    });
-    if (local) return local;
+/** Reads the live page unless it's stale, then refetches the current URL. */
+export async function resolveChannelInfo(deps: ResolveChannelInfoDeps): Promise<ChannelInfo[]> {
+    if (!deps.navigatedSinceLoad) {
+        const local = parseChannelInfo({
+            ytInitialData: deps.initialYtInitialData,
+            document: deps.document,
+        });
+        if (local.length > 0) return local;
+    }
 
     let html: string | null = null;
     try {
         html = await deps.fetchCurrentPage();
     } catch {
-        return null;
+        return [];
     }
-    if (html === null) return null;
+    if (html === null) return [];
 
     const freshDoc = new DOMParser().parseFromString(html, "text/html");
     const freshYtInitialData = extractYtInitialData(freshDoc);
     const fromFetched = parseChannelInfo({ ytInitialData: freshYtInitialData, document: freshDoc });
-    if (fromFetched) return fromFetched;
+    if (fromFetched.length > 0 || deps.navigatedSinceLoad) return fromFetched;
 
-    // An SPA navigation can finish during the fetch, so the live DOM gets a
-    // second read; the fetched page still wins when it yields data.
+    // A document still loading at the first read can finish during the
+    // fetch, so the live DOM gets a second read.
     return parseChannelInfo({ document: deps.document });
 }
 

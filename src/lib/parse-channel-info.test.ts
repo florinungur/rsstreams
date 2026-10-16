@@ -30,9 +30,9 @@ function parseHtmlToDocument(html: string): Document {
 describe("parseChannelInfo – ytInitialData path", () => {
     it("extracts channelId, title, and named playlists from a handle page", () => {
         const html = loadFixture("mkbhd-handle.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
-        expect(info).not.toBeNull();
+        expect(info).toBeDefined();
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
         expect(info?.playlists.length).toBeGreaterThan(0);
@@ -44,7 +44,7 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("extracts channelId from the canonical /channel/UC… URL", () => {
         const html = loadFixture("mkbhd-channel-id.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
@@ -52,16 +52,31 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("resolves channelId from a watch page via videoOwnerRenderer", () => {
         const html = loadFixture("mkbhd-watch.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
         expect(info?.playlists).toEqual([]);
     });
 
+    it("resolves every collaborator from a collab watch page, uploader first", () => {
+        const html = loadFixture("collab-watch.html");
+        const channels = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
+
+        expect(channels.map((c) => [c.channelId, c.channelTitle])).toEqual([
+            ["UCPDis9pjXuqyI7RYLJ-TTSA", "FailArmy"],
+            ["UCUKOZiRKuxh6peXL19oKjZw", "FailArmy 2.0"],
+            ["UC38EdoY4Ky_IsVJ3dEzVxAQ", "FailArmy Network"],
+            ["UCsVXjNRWJMyXViNLM2pyMfg", "This Is Happening"],
+        ]);
+        for (const channel of channels) {
+            expect(channel.playlists).toEqual([]);
+        }
+    });
+
     it("resolves channelId from a playlist page via videoOwnerRenderer", () => {
         const html = loadFixture("mkbhd-playlist.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
@@ -70,7 +85,7 @@ describe("parseChannelInfo – ytInitialData path", () => {
 
     it("handles a channel with no Shorts (zero impact on parser output)", () => {
         const html = loadFixture("no-shorts-channel.html");
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialDataFromString(html) });
 
         expect(info?.channelId).toBe("UC9-y-6csu5WGm29I7JiwpnA");
         expect(info?.channelTitle).toBe("Computerphile");
@@ -81,7 +96,7 @@ describe("parseChannelInfo – DOM fallback", () => {
     it("falls back to microdata when ytInitialData is absent", () => {
         const html = loadFixture("mkbhd-handle.html");
         const doc = parseHtmlToDocument(html);
-        const info = parseChannelInfo({ document: doc });
+        const [info] = parseChannelInfo({ document: doc });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
@@ -92,7 +107,7 @@ describe("parseChannelInfo – DOM fallback", () => {
     it("falls back to DOM when ytInitialData is non-object", () => {
         const html = loadFixture("mkbhd-channel-id.html");
         const doc = parseHtmlToDocument(html);
-        const info = parseChannelInfo({ ytInitialData: "not-an-object", document: doc });
+        const [info] = parseChannelInfo({ ytInitialData: "not-an-object", document: doc });
 
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
     });
@@ -101,7 +116,7 @@ describe("parseChannelInfo – DOM fallback", () => {
         const html = loadFixture("no-shorts-channel.html");
         const doc = parseHtmlToDocument(html);
         // Provide an empty object so the JSON path short-circuits to DOM.
-        const info = parseChannelInfo({ ytInitialData: {}, document: doc });
+        const [info] = parseChannelInfo({ ytInitialData: {}, document: doc });
 
         expect(info?.channelId).toBe("UC9-y-6csu5WGm29I7JiwpnA");
         expect(info?.channelTitle).toBe("Computerphile");
@@ -109,16 +124,16 @@ describe("parseChannelInfo – DOM fallback", () => {
 });
 
 describe("parseChannelInfo – failure modes", () => {
-    it("returns null when both sources are absent", () => {
-        expect(parseChannelInfo({})).toBeNull();
+    it("returns no channels when both sources are absent", () => {
+        expect(parseChannelInfo({})).toEqual([]);
     });
 
-    it("returns null when ytInitialData and document are both empty", () => {
+    it("returns no channels when ytInitialData and document are both empty", () => {
         const doc = new DOMParser().parseFromString("<html><body></body></html>", "text/html");
-        expect(parseChannelInfo({ ytInitialData: null, document: doc })).toBeNull();
+        expect(parseChannelInfo({ ytInitialData: null, document: doc })).toEqual([]);
     });
 
-    it("returns null when JSON has an owner but the ID is not UC-prefixed", () => {
+    it("returns no channels when JSON has an owner but the ID is not UC-prefixed", () => {
         const data = {
             metadata: {
                 channelMetadataRenderer: {
@@ -127,10 +142,10 @@ describe("parseChannelInfo – failure modes", () => {
                 },
             },
         };
-        expect(parseChannelInfo({ ytInitialData: data })).toBeNull();
+        expect(parseChannelInfo({ ytInitialData: data })).toEqual([]);
     });
 
-    it("returns null when channelMetadataRenderer has no title", () => {
+    it("returns no channels when channelMetadataRenderer has no title", () => {
         const data = {
             metadata: {
                 channelMetadataRenderer: {
@@ -138,10 +153,10 @@ describe("parseChannelInfo – failure modes", () => {
                 },
             },
         };
-        expect(parseChannelInfo({ ytInitialData: data })).toBeNull();
+        expect(parseChannelInfo({ ytInitialData: data })).toEqual([]);
     });
 
-    it("returns null when videoOwnerRenderer has no browseId", () => {
+    it("returns no channels when videoOwnerRenderer has no browseId", () => {
         const data = {
             contents: {
                 twoColumnWatchNextResults: {
@@ -163,7 +178,53 @@ describe("parseChannelInfo – failure modes", () => {
                 },
             },
         };
-        expect(parseChannelInfo({ ytInitialData: data })).toBeNull();
+        expect(parseChannelInfo({ ytInitialData: data })).toEqual([]);
+    });
+});
+
+describe("parseChannelInfo – collab owner dialog", () => {
+    const collabOwner = (listItems: unknown): unknown => ({
+        owner: {
+            videoOwnerRenderer: {
+                navigationEndpoint: {
+                    showDialogCommand: {
+                        panelLoadingStrategy: {
+                            inlineContent: {
+                                dialogViewModel: {
+                                    customContent: { listViewModel: { listItems } },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+    const collaborator = (browseId?: string, content?: string): unknown => ({
+        listItemViewModel: {
+            title: {
+                content,
+                commandRuns: [{ onTap: { innertubeCommand: { browseEndpoint: { browseId } } } }],
+            },
+        },
+    });
+
+    it("skips collaborators without a UC browseId or a name", () => {
+        const data = collabOwner([
+            collaborator("UCKEPTXXXXXXXXXXXXXXXXXX", "Kept"),
+            collaborator(undefined, "No Id"),
+            collaborator("NOT-A-UC-ID", "Bad Id"),
+            collaborator("UCNONAMEXXXXXXXXXXXXXXXX", undefined),
+            "not-a-record",
+        ]);
+        expect(parseChannelInfo({ ytInitialData: data })).toEqual([
+            { channelId: "UCKEPTXXXXXXXXXXXXXXXXXX", channelTitle: "Kept", playlists: [] },
+        ]);
+    });
+
+    it("returns no channels when the dialog lists no usable collaborator", () => {
+        expect(parseChannelInfo({ ytInitialData: collabOwner([collaborator()]) })).toEqual([]);
+        expect(parseChannelInfo({ ytInitialData: collabOwner("not-an-array") })).toEqual([]);
     });
 });
 
@@ -502,7 +563,7 @@ describe("extractYtInitialData", () => {
 
     it("reads ytInitialData from the JSON script element when the page has no inline marker", () => {
         const doc = parseHtmlToDocument(loadFixture("mkbhd-watch-json-script.html"));
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
         expect(info?.channelId).toBe("UCBJycsmduvYEL83R_U4JriQ");
         expect(info?.channelTitle).toBe("Marques Brownlee");
     });
@@ -720,7 +781,7 @@ describe("parseChannelInfo – playlist filtering", () => {
                 },
             },
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([{ listId: "PLABCDEFG", name: "Real Playlist" }]);
     });
 
@@ -734,7 +795,7 @@ describe("parseChannelInfo – playlist filtering", () => {
             },
             contents: {},
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([]);
     });
 
@@ -779,7 +840,7 @@ describe("parseChannelInfo – playlist filtering", () => {
                 },
             },
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([{ listId: "PLPLAIN", name: "Plain" }]);
     });
 
@@ -824,7 +885,7 @@ describe("parseChannelInfo – playlist filtering", () => {
                 },
             },
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([]);
     });
 
@@ -843,7 +904,7 @@ describe("parseChannelInfo – playlist filtering", () => {
                 },
             },
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([]);
     });
 
@@ -862,7 +923,7 @@ describe("parseChannelInfo – playlist filtering", () => {
                 },
             },
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([]);
     });
 
@@ -909,7 +970,7 @@ describe("parseChannelInfo – playlist filtering", () => {
                 },
             },
         };
-        const info = parseChannelInfo({ ytInitialData: data });
+        const [info] = parseChannelInfo({ ytInitialData: data });
         expect(info?.playlists).toEqual([]);
     });
 });
@@ -957,7 +1018,8 @@ describe("resolveChannelInfo", () => {
 
     it("returns the local parse and never calls fetchCurrentPage when the live page yields a channel", async () => {
         const fetchCurrentPage = vi.fn();
-        const info = await resolveChannelInfo({
+        const [info] = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: {
                 metadata: {
                     channelMetadataRenderer: {
@@ -975,7 +1037,8 @@ describe("resolveChannelInfo", () => {
     });
 
     it("falls back to a same-origin fetch when the live page has no usable state", async () => {
-        const info = await resolveChannelInfo({
+        const [info] = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: undefined,
             document: emptyDoc(),
             fetchCurrentPage: vi
@@ -986,31 +1049,34 @@ describe("resolveChannelInfo", () => {
         expect(info?.channelTitle).toBe("Fetched");
     });
 
-    it("returns null when fetchCurrentPage resolves to null", async () => {
-        const info = await resolveChannelInfo({
+    it("returns no channels when fetchCurrentPage resolves to null", async () => {
+        const channels = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: undefined,
             document: emptyDoc(),
             fetchCurrentPage: vi.fn().mockResolvedValue(null),
         });
-        expect(info).toBeNull();
+        expect(channels).toEqual([]);
     });
 
-    it("returns null when fetchCurrentPage rejects", async () => {
-        const info = await resolveChannelInfo({
+    it("returns no channels when fetchCurrentPage rejects", async () => {
+        const channels = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: undefined,
             document: emptyDoc(),
             fetchCurrentPage: vi.fn().mockRejectedValue(new Error("network")),
         });
-        expect(info).toBeNull();
+        expect(channels).toEqual([]);
     });
 
-    it("returns null when the fetched HTML has neither ytInitialData nor microdata", async () => {
-        const info = await resolveChannelInfo({
+    it("returns no channels when the fetched HTML has neither ytInitialData nor microdata", async () => {
+        const channels = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: undefined,
             document: emptyDoc(),
             fetchCurrentPage: vi.fn().mockResolvedValue("<html><body>nothing</body></html>"),
         });
-        expect(info).toBeNull();
+        expect(channels).toEqual([]);
     });
 
     // Inject channel microdata into a live document, mimicking a `<meta
@@ -1027,7 +1093,8 @@ describe("resolveChannelInfo", () => {
 
     it("re-reads the live DOM when the refetch yields nothing but the page settled mid-await", async () => {
         const doc = emptyDoc();
-        const info = await resolveChannelInfo({
+        const [info] = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: undefined,
             document: doc,
             fetchCurrentPage: vi.fn().mockImplementation(async () => {
@@ -1040,9 +1107,44 @@ describe("resolveChannelInfo", () => {
         expect(info?.playlists).toEqual([]);
     });
 
+    it("skips the stale live page after an SPA navigation and returns the refetched page", async () => {
+        const doc = emptyDoc();
+        settleMicrodata(doc, "UCSTALEDOMXXXXXXXXXXXXX", "Stale DOM");
+        const [info] = await resolveChannelInfo({
+            navigatedSinceLoad: true,
+            initialYtInitialData: {
+                metadata: {
+                    channelMetadataRenderer: {
+                        externalId: "UCSTALEXXXXXXXXXXXXXXXXX",
+                        title: "Stale",
+                    },
+                },
+            },
+            document: doc,
+            fetchCurrentPage: vi
+                .fn()
+                .mockResolvedValue(channelHtml("UCFETCHEDXXXXXXXXXXXXXX", "Fetched")),
+        });
+        expect(info?.channelId).toBe("UCFETCHEDXXXXXXXXXXXXXX");
+        expect(info?.channelTitle).toBe("Fetched");
+    });
+
+    it("returns no channels after an SPA navigation when the refetch yields nothing, never the stale live DOM", async () => {
+        const doc = emptyDoc();
+        settleMicrodata(doc, "UCSTALEDOMXXXXXXXXXXXXX", "Stale DOM");
+        const channels = await resolveChannelInfo({
+            navigatedSinceLoad: true,
+            initialYtInitialData: undefined,
+            document: doc,
+            fetchCurrentPage: vi.fn().mockResolvedValue("<html><body>shell</body></html>"),
+        });
+        expect(channels).toEqual([]);
+    });
+
     it("prefers the fetched page over a settled live DOM (SPA-stale escape hatch wins)", async () => {
         const doc = emptyDoc();
-        const info = await resolveChannelInfo({
+        const [info] = await resolveChannelInfo({
+            navigatedSinceLoad: false,
             initialYtInitialData: undefined,
             document: doc,
             fetchCurrentPage: vi.fn().mockImplementation(async () => {

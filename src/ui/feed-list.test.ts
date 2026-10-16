@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FeedRow } from "../lib/feed-builder";
 import { asListId } from "../lib/youtube-ids";
-import { renderFeedList } from "./feed-list";
+import { type ChannelFeeds, renderFeedList } from "./feed-list";
 
 function uploadsRow(): FeedRow {
     return {
@@ -32,6 +32,11 @@ function playlistRow(name = "Retro Tech", listId = "PLretro"): FeedRow {
     };
 }
 
+// A single channel renders without a title, as on every single-owner page.
+function oneChannel(...rows: FeedRow[]): ChannelFeeds[] {
+    return [{ title: "Marques Brownlee", rows }];
+}
+
 // Drain queued microtasks (e.g. the awaited `options.copy(...)` Promise inside
 // the click handler) without advancing fake timers.
 async function flushMicrotasks(): Promise<void> {
@@ -54,7 +59,7 @@ describe("renderFeedList", () => {
     });
 
     it("renders one .feed-row per FeedRow with label, URL, and copy button", () => {
-        renderFeedList(container, [uploadsRow(), shortsRow()], {
+        renderFeedList(container, oneChannel(uploadsRow(), shortsRow()), {
             copy: vi.fn().mockResolvedValue(undefined),
         });
 
@@ -74,20 +79,58 @@ describe("renderFeedList", () => {
 
     it("replaces any existing content in the container", () => {
         container.innerHTML = "<p data-stale>old</p>";
-        renderFeedList(container, [uploadsRow()], {
+        renderFeedList(container, oneChannel(uploadsRow()), {
             copy: vi.fn().mockResolvedValue(undefined),
         });
         expect(container.querySelector("[data-stale]")).toBeNull();
         expect(container.querySelectorAll(".feed-row")).toHaveLength(1);
     });
 
+    it("renders a single channel's rows straight into the container, untitled", () => {
+        renderFeedList(container, oneChannel(uploadsRow()), {
+            copy: vi.fn().mockResolvedValue(undefined),
+        });
+        expect(container.querySelector(".feed-list__channel")).toBeNull();
+        expect(container.firstElementChild?.classList.contains("feed-list__group")).toBe(true);
+    });
+
+    it("gives each of several channels a titled section holding its own rows and playlists", () => {
+        renderFeedList(
+            container,
+            [
+                { title: "Reel Rejects", rows: [uploadsRow(), playlistRow("Reviews", "PLrr")] },
+                { title: "Roxy Striar", rows: [shortsRow()] },
+            ],
+            { copy: vi.fn().mockResolvedValue(undefined) },
+        );
+
+        const sections = container.querySelectorAll(":scope > section.feed-list__channel");
+        expect(sections).toHaveLength(2);
+        expect(container.children).toHaveLength(2);
+
+        expect(sections[0]?.firstElementChild?.tagName).toBe("H2");
+        expect(sections[0]?.querySelector(".feed-list__channel-title")?.textContent).toBe(
+            "Reel Rejects",
+        );
+        expect(sections[0]?.querySelectorAll(".feed-row--uploads")).toHaveLength(1);
+        expect(sections[0]?.querySelector(".feed-list__playlists summary")?.textContent).toBe(
+            "Playlists (1)",
+        );
+
+        expect(sections[1]?.querySelector(".feed-list__channel-title")?.textContent).toBe(
+            "Roxy Striar",
+        );
+        expect(sections[1]?.querySelectorAll(".feed-row")).toHaveLength(1);
+        expect(sections[1]?.querySelector(".feed-list__playlists")).toBeNull();
+    });
+
     it("renders nothing when given zero rows", () => {
-        renderFeedList(container, [], { copy: vi.fn().mockResolvedValue(undefined) });
+        renderFeedList(container, oneChannel(), { copy: vi.fn().mockResolvedValue(undefined) });
         expect(container.children).toHaveLength(0);
     });
 
     it("omits the Playlists heading when no playlist rows are present", () => {
-        renderFeedList(container, [uploadsRow(), shortsRow()], {
+        renderFeedList(container, oneChannel(uploadsRow(), shortsRow()), {
             copy: vi.fn().mockResolvedValue(undefined),
         });
         expect(container.querySelector(".feed-list__heading")).toBeNull();
@@ -97,12 +140,12 @@ describe("renderFeedList", () => {
     it("wraps playlist rows in a collapsed <details> with a counted summary", () => {
         renderFeedList(
             container,
-            [
+            oneChannel(
                 uploadsRow(),
                 shortsRow(),
                 playlistRow("Retro Tech", "PLretro"),
                 playlistRow("Reviews!", "PLreviews"),
-            ],
+            ),
             { copy: vi.fn().mockResolvedValue(undefined) },
         );
 
@@ -124,7 +167,7 @@ describe("renderFeedList", () => {
     });
 
     it("renders only a collapsed Playlists <details> when no system rows are present", () => {
-        renderFeedList(container, [playlistRow("Solo playlist", "PLsolo")], {
+        renderFeedList(container, oneChannel(playlistRow("Solo playlist", "PLsolo")), {
             copy: vi.fn().mockResolvedValue(undefined),
         });
         const groups = container.querySelectorAll(".feed-list__group");
@@ -140,7 +183,7 @@ describe("renderFeedList", () => {
 
     it("calls copy with the row URL on click, flashes 'Copied', then resets after flashMs", async () => {
         const copy = vi.fn().mockResolvedValue(undefined);
-        renderFeedList(container, [uploadsRow()], { copy, flashMs: 1000 });
+        renderFeedList(container, oneChannel(uploadsRow()), { copy, flashMs: 1000 });
 
         const button = container.querySelector<HTMLButtonElement>(".feed-row__copy");
         expect(button).not.toBeNull();
@@ -163,7 +206,7 @@ describe("renderFeedList", () => {
 
     it("flashes 'Copy failed' when copy rejects, then resets", async () => {
         const copy = vi.fn().mockRejectedValue(new Error("clipboard blocked"));
-        renderFeedList(container, [uploadsRow()], { copy, flashMs: 500 });
+        renderFeedList(container, oneChannel(uploadsRow()), { copy, flashMs: 500 });
 
         const button = container.querySelector<HTMLButtonElement>(".feed-row__copy");
         button?.click();
@@ -179,7 +222,7 @@ describe("renderFeedList", () => {
 
     it("falls back to a 1500ms flash when flashMs is omitted", async () => {
         const copy = vi.fn().mockResolvedValue(undefined);
-        renderFeedList(container, [uploadsRow()], { copy });
+        renderFeedList(container, oneChannel(uploadsRow()), { copy });
 
         const button = container.querySelector<HTMLButtonElement>(".feed-row__copy");
         button?.click();

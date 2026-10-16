@@ -12,6 +12,13 @@ import {
 import { type SelfTestProbeResult, selfTest } from "@/lib/selectors";
 
 const CHANNEL_ID = "UCBJycsmduvYEL83R_U4JriQ"; // Marques Brownlee
+const COLLAB_VIDEO_ID = "TzMAPc4ucKQ"; // Credited to four collaborating channels
+const COLLAB_CHANNEL_IDS = [
+    "UCPDis9pjXuqyI7RYLJ-TTSA", // FailArmy, the uploader
+    "UCUKOZiRKuxh6peXL19oKjZw", // FailArmy 2.0
+    "UC38EdoY4Ky_IsVJ3dEzVxAQ", // FailArmy Network
+    "UCsVXjNRWJMyXViNLM2pyMfg", // This Is Happening
+];
 const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
 const MAX_ATTEMPTS = 4;
 const BASE_BACKOFF_MS = 1000;
@@ -137,7 +144,7 @@ describe("selector canary (live YouTube)", () => {
 
         expectSelectorsHealthy(doc, html);
 
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
         expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
         expect((info?.channelTitle ?? "").length, served(doc, html)).toBeGreaterThan(0);
     });
@@ -148,7 +155,7 @@ describe("selector canary (live YouTube)", () => {
 
         expectSelectorsHealthy(doc, html);
 
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
         expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
     });
 
@@ -156,8 +163,19 @@ describe("selector canary (live YouTube)", () => {
         const html = await fetchYouTubeOrSkip(ctx, "/watch?v=_02K6efDLI0");
         const doc = parse(html);
 
-        const info = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        const [info] = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
         expect(info?.channelId, served(doc, html)).toBe(CHANNEL_ID);
+    });
+
+    it("collab watch page: ytInitialData parse resolves every collaborator", async (ctx) => {
+        const html = await fetchYouTubeOrSkip(ctx, `/watch?v=${COLLAB_VIDEO_ID}`);
+        const doc = parse(html);
+
+        const channels = parseChannelInfo({ ytInitialData: extractYtInitialData(doc) });
+        expect(
+            channels.map((c) => c.channelId),
+            served(doc, html),
+        ).toEqual(COLLAB_CHANNEL_IDS);
     });
 
     it("playlists tab: parsePlaylistsTab yields at least one named playlist", async (ctx) => {

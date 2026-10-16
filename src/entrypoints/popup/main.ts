@@ -5,29 +5,32 @@ import { isChannelId } from "@/lib/youtube-ids";
 import { renderFeedList } from "@/ui/feed-list";
 
 export interface InitOptions {
-    info: ChannelInfo;
+    channels: ChannelInfo[];
     copy: (text: string) => Promise<void>;
 }
 
 export function init(container: HTMLElement, options: InitOptions): void {
-    const rows = buildFeeds(options.info);
-    renderFeedList(container, rows, { copy: options.copy });
+    const channels = options.channels.map((info) => ({
+        title: info.channelTitle,
+        rows: buildFeeds(info),
+    }));
+    renderFeedList(container, channels, { copy: options.copy });
 }
 
 export interface BootOptions {
-    fetchChannelInfo: () => Promise<ChannelInfo | null>;
+    fetchChannelInfo: () => Promise<ChannelInfo[]>;
     copy: (text: string) => Promise<void>;
 }
 
 export async function boot(container: HTMLElement, options: BootOptions): Promise<void> {
-    let info: ChannelInfo | null = null;
+    let channels: ChannelInfo[] = [];
     try {
-        info = await options.fetchChannelInfo();
+        channels = await options.fetchChannelInfo();
     } catch {
-        info = null;
+        channels = [];
     }
-    if (info) {
-        init(container, { info, copy: options.copy });
+    if (channels.length > 0) {
+        init(container, { channels, copy: options.copy });
     } else {
         renderEmpty(container);
     }
@@ -73,14 +76,14 @@ function tabIdOverride(): number | undefined {
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
-export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo | null> {
+export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo[]> {
     const override = tabIdOverride();
     let tabId = override;
     if (override === undefined) {
         const tabs = await browser.tabs.query({ active: true, currentWindow: true });
         tabId = tabs[0]?.id;
     }
-    if (tabId === undefined) return null;
+    if (tabId === undefined) return [];
 
     const results = await browser.scripting.executeScript({
         target: { tabId },
@@ -88,7 +91,7 @@ export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo | nul
     });
 
     const value = results[0]?.result;
-    return isChannelInfo(value) ? value : null;
+    return Array.isArray(value) && value.every(isChannelInfo) ? value : [];
 }
 
 function isChannelInfo(value: unknown): value is ChannelInfo {

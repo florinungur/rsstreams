@@ -6,7 +6,12 @@ import { strict as assert } from "node:assert";
 import { after, before, describe, it } from "node:test";
 import { By, until } from "selenium-webdriver";
 import { buildDriver, E2E_EXTENSION, popupUrl } from "./driver.ts";
-import { CHANNEL_ID, startFixtureServer, type FixtureServer } from "./fixture-server.ts";
+import {
+    CHANNEL_ID,
+    COLLAB_VIDEO_ID,
+    startFixtureServer,
+    type FixtureServer,
+} from "./fixture-server.ts";
 
 const RENDER_TIMEOUT = 15_000;
 const UPLOADS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
@@ -50,10 +55,11 @@ describe("RSStreams popup (E2E, stock Firefox)", () => {
         await server?.close();
     });
 
-    /** Point the content tab at a fixture path, then (re)load the popup against it. */
-    async function renderPopupFor(path: string): Promise<void> {
+    /** Point the content tab at a fixture path, run `script` there if given, then (re)load the popup against it. */
+    async function renderPopupFor(path: string, script?: string): Promise<void> {
         await driver.switchTo().window(contentHandle);
         await driver.get(`${server.origin}${path}`);
+        if (script) await driver.executeScript(script);
 
         await driver.switchTo().window(popupHandle);
         await driver.get(popupUrl(`?tabId=${contentTabId}`));
@@ -111,6 +117,52 @@ describe("RSStreams popup (E2E, stock Firefox)", () => {
 
         assert.equal(await countRows(".feed-row--uploads"), 1);
         assert.equal(await urlOf("uploads"), UPLOADS_URL);
+    });
+
+    it("titles one section per collaborator on a collab video, uploader first", async () => {
+        await renderPopupFor(`/watch?v=${COLLAB_VIDEO_ID}`);
+
+        const titles = await driver.findElements(By.css(".feed-list__channel-title"));
+        // getText() returns the CSS-uppercased title.
+        const names = await Promise.all(titles.map(async (t) => (await t.getText()).trim()));
+        assert.deepEqual(names, [
+            "FAILARMY",
+            "FAILARMY 2.0",
+            "FAILARMY NETWORK",
+            "THIS IS HAPPENING",
+        ]);
+
+        const uploads = await driver.findElements(By.css(".feed-row--uploads .feed-row__url"));
+        const urls = await Promise.all(uploads.map(async (u) => (await u.getText()).trim()));
+        assert.equal(urls.length, 4);
+        assert.equal(
+            urls[0],
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCPDis9pjXuqyI7RYLJ-TTSA",
+        );
+    });
+
+    it("reads the page it's on after an in-page navigation from another channel", async () => {
+        // YouTube's in-page navigation keeps the first page's document and ytInitialData.
+        await renderPopupFor(
+            `/channel/${CHANNEL_ID}`,
+            `history.pushState({}, "", "/watch?v=${COLLAB_VIDEO_ID}");`,
+        );
+
+        const titles = await driver.findElements(By.css(".feed-list__channel-title"));
+        const names = await Promise.all(titles.map(async (t) => (await t.getText()).trim()));
+        assert.deepEqual(names, [
+            "FAILARMY",
+            "FAILARMY 2.0",
+            "FAILARMY NETWORK",
+            "THIS IS HAPPENING",
+        ]);
+
+        // A reload of the content tab would pass the check above without a stale document.
+        await driver.switchTo().window(contentHandle);
+        const loadedPath = await driver.executeScript<string>(
+            `return new URL(performance.getEntriesByType("navigation")[0].name).pathname;`,
+        );
+        assert.equal(loadedPath, `/channel/${CHANNEL_ID}`);
     });
 
     it("resolves the channel from a playlist page", async () => {

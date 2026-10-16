@@ -10,7 +10,7 @@ Because I don't want to have a Google account and RSS is the future.
 
 YouTube's default channel RSS feed includes Shorts. Subscribing in a feed reader pulls every Short alongside long-form videos. The `UULF…` long-form-only playlist solves it, but YouTube doesn't surface it. Same for `UUSH…` (Shorts only) and `UULV…` (Live only).
 
-This extension shows all of them in a popup. Click the toolbar icon on any `youtube.com/@handle`, `/channel/UC…`, `/watch?v=…`, or `/playlist?list=…` page, copy the feed URL you want, paste it into your reader.
+This extension shows all of them in a popup. Click the toolbar icon on any `youtube.com/@handle`, `/channel/UC…`, `/watch?v=…`, or `/playlist?list=…` page, copy the feed URL you want, paste it into your reader. On a video credited to several channels, the popup lists each channel's feeds, uploader first.
 
 ## Install
 

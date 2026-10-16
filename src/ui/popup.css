@@ -85,7 +85,8 @@ body {
     transform-origin: center;
 }
 
-.feed-list__heading::after {
+.feed-list__heading::after,
+.feed-list__channel-title::after {
     content: "";
     flex: 1;
     height: 1px;
@@ -99,6 +100,21 @@ body {
 
 .feed-list__playlists[open] > .feed-list__group {
     margin-top: 6px;
+}
+
+.feed-list__channel + .feed-list__channel {
+    margin-top: 20px;
+}
+
+.feed-list__channel-title {
+    margin: 0 4px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .feed-row {
