@@ -79,7 +79,7 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 >     pnpm wxt:prepare
 >     pnpm build
 >
-> Output lands in `.output/firefox-mv3/` and matches the uploaded package. Built with WXT + Vite (exact versions in the included package.json). Lifecycle scripts are disabled globally (pnpm `ignoreScripts`), so `wxt prepare` is run explicitly.
+> Output lands in `.output/firefox-mv3/` and matches the uploaded package. Built with WXT + Vite (exact versions in the included package.json). The package has no postinstall script, so `wxt prepare` runs as its own step.
 >
 > No remote code, no eval, no obfuscation. Minified by the bundler; original sources are in the zip.
 >
