@@ -13,6 +13,7 @@ The capture script below is the single source for the URL ↔ file mapping.
 | `mkbhd-playlist.html`          | Marques Brownlee | Playlist page ("First Impressions!"). Owner in `playlistSidebarRenderer`.                                                                                                                      |
 | `no-shorts-channel.html`       | Computerphile    | Channel with no Shorts tab – verifies the parser still returns a valid `ChannelInfo`.                                                                                                          |
 | `mkbhd-playlists-tab.html`     | Marques Brownlee | Playlists tab. Backs `parsePlaylistsTab` – the content script fetches this to surface the canonical playlist grid regardless of which sub-page the user clicked from.                          |
+| `collab-watch.html`            | FailArmy, 3 more | Video credited to four channels. `videoOwnerRenderer` links a "Collaborators" dialog listing each channel, uploader first, in place of a single owner.                                         |
 
 ## Re-capturing
 
@@ -44,7 +45,8 @@ for url_name in \
   "https://www.youtube.com/watch?v=_02K6efDLI0|mkbhd-watch.html" \
   "https://www.youtube.com/playlist?list=PLBsP89CPrMeM2MmF4suOeT0vsic9nEC2Y|mkbhd-playlist.html" \
   "https://www.youtube.com/@Computerphile|no-shorts-channel.html" \
-  "https://www.youtube.com/@mkbhd/playlists|mkbhd-playlists-tab.html"; do
+  "https://www.youtube.com/@mkbhd/playlists|mkbhd-playlists-tab.html" \
+  "https://www.youtube.com/watch?v=TzMAPc4ucKQ|collab-watch.html"; do
   capture "${url_name%|*}" "${url_name#*|}" 'var ytInitialData = '
 done
 capture "https://www.youtube.com/watch?v=_02K6efDLI0" \

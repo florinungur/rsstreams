@@ -5,16 +5,21 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 
-/** MKBHD – the channel all fixtures resolve to. */
+/** MKBHD – the channel every fixture but the collab video resolves to. */
 export const CHANNEL_ID = "UCBJycsmduvYEL83R_U4JriQ";
+
+/** A FailArmy video credited to four collaborating channels. */
+export const COLLAB_VIDEO_ID = "TzMAPc4ucKQ";
 
 function fixture(name: string): Buffer {
     return readFileSync(fileURLToPath(new URL(`../test/fixtures/${name}`, import.meta.url)));
 }
 
+// Keyed by path, or by path plus `v` where one path serves several videos.
 const ROUTES: Record<string, string> = {
     [`/channel/${CHANNEL_ID}`]: "mkbhd-channel-id.html",
     [`/channel/${CHANNEL_ID}/playlists`]: "mkbhd-playlists-tab.html",
+    [`/watch?v=${COLLAB_VIDEO_ID}`]: "collab-watch.html",
     "/watch": "mkbhd-watch.html",
     "/playlist": "mkbhd-playlist.html",
 };
@@ -28,8 +33,11 @@ export interface FixtureServer {
 /** Start the fixture server on a random free port bound to 127.0.0.1. */
 export function startFixtureServer(): Promise<FixtureServer> {
     const server = createServer((req, res) => {
-        const pathname = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
-        const file = ROUTES[pathname];
+        const { pathname, searchParams } = new URL(req.url ?? "/", "http://127.0.0.1");
+        // Only `v` picks a video: YouTube's own scripts in the fixtures reload
+        // the page with extra params such as `themeRefresh=1`.
+        const video = searchParams.get("v");
+        const file = (video !== null && ROUTES[`${pathname}?v=${video}`]) || ROUTES[pathname];
         if (file) {
             res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
             res.end(fixture(file));

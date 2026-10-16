@@ -20,10 +20,10 @@ The extension makes no requests to any server I control, and none to any third p
 
 The requests it does trigger go to YouTube itself – the same site you're already on – from within the YouTube tab:
 
-- It fetches the channel's public playlists page (the same page you'd see at `youtube.com/@channel/playlists`) to list every public playlist.
+- It fetches the channel's public playlists page (the same page you'd see at `youtube.com/@channel/playlists`) to list every public playlist. On a video credited to several channels, it fetches each channel's playlists page.
 - If the data embedded in the open page is stale or missing, it re-fetches the page you're already viewing.
 
-Both requests carry whatever cookies your browser already sends to YouTube; I never see them, and no data is sent anywhere new.
+These requests carry whatever cookies your browser already sends to YouTube; I never see them, and no data is sent anywhere new.
 
 ## Permissions, and why
 

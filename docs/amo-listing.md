@@ -43,6 +43,8 @@ Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Kee
 > - **Live only**
 > - **One row per public playlist** on the channel
 >
+> On a video made by several channels together, the popup lists these feeds for each of them.
+>
 > Each row has a **Copy** button. Paste the URL into your feed reader and you're subscribed – no Google account, no leaving YouTube, no pasting URLs into a separate web tool.
 >
 > **Why long-form-only matters**
@@ -51,7 +53,7 @@ Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Kee
 >
 > **Privacy**
 >
-> RSStreams collects nothing, has no analytics, and contains no remote code. It reads a YouTube page only when you click the icon, and the only network requests it makes go to YouTube itself, to list a channel's public playlists. Nothing is sent to me or any third party. Full policy: [PRIVACY.md](https://github.com/florinungur/rsstreams/blob/main/PRIVACY.md)
+> RSStreams collects nothing, has no analytics, and contains no remote code. It reads a YouTube page only when you click the icon, and the only network requests it makes go to YouTube itself: to list each channel's public playlists and, when the data embedded in the open page is stale or missing, to re-fetch that page. Nothing is sent to me or any third party. Full policy: [PRIVACY.md](https://github.com/florinungur/rsstreams/blob/main/PRIVACY.md)
 >
 > **Permissions**
 >
@@ -83,8 +85,8 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 >
 > Notes on behaviour:
 >
-> - The long-form / Shorts / Live feed URLs use undocumented YouTube playlist-ID prefixes (UULF / UUSH / UULV). They can return empty feeds for channels with no such content; the popup marks those rows rather than failing.
-> - To enumerate a channel's playlists, the content script fetches that channel's public `/playlists` page same-origin from within the YouTube tab. No third-party requests.
+> - The long-form / Shorts / Live feed URLs use undocumented YouTube playlist-ID prefixes (UULF / UUSH / UULV). They return an empty feed for a channel with no such content; the popup lists the rows regardless.
+> - To enumerate playlists, the content script fetches each channel's public `/playlists` page same-origin from within the YouTube tab; a video credited to several channels gets one request per channel. When the page's embedded data is stale or missing (YouTube's in-page navigation leaves it describing the first page loaded), it re-fetches the open page the same way. No third-party requests.
 
 ## Source code submission
 

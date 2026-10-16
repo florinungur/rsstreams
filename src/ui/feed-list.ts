@@ -14,14 +14,37 @@ const FAILED_LABEL = "Copy failed";
 const SUCCESS_CLASS = "feed-row__copy--success";
 const ERROR_CLASS = "feed-row__copy--error";
 
-/** Renders the system rows, then the playlists in a collapsed `<details>`. */
+export interface ChannelFeeds {
+    title: string;
+    rows: FeedRow[];
+}
+
+/**
+ * Renders each channel's system rows, then its playlists in a collapsed
+ * `<details>`. Channels get a titled section only when there are several.
+ */
 export function renderFeedList(
     container: HTMLElement,
-    rows: FeedRow[],
+    channels: ChannelFeeds[],
     options: FeedListOptions,
 ): void {
     container.replaceChildren();
+    for (const channel of channels) {
+        let parent: HTMLElement = container;
+        if (channels.length > 1) {
+            parent = document.createElement("section");
+            parent.className = "feed-list__channel";
+            const title = document.createElement("h2");
+            title.className = "feed-list__channel-title";
+            title.textContent = channel.title;
+            parent.appendChild(title);
+            container.appendChild(parent);
+        }
+        appendRows(parent, channel.rows, options);
+    }
+}
 
+function appendRows(parent: HTMLElement, rows: FeedRow[], options: FeedListOptions): void {
     const systemRows: FeedRow[] = [];
     const playlistRows: FeedRow[] = [];
     for (const row of rows) {
@@ -33,7 +56,7 @@ export function renderFeedList(
     }
 
     if (systemRows.length > 0) {
-        container.appendChild(buildGroup(systemRows, options));
+        parent.appendChild(buildGroup(systemRows, options));
     }
     if (playlistRows.length > 0) {
         // Collapsed by default: a channel can have dozens of playlists.
@@ -46,7 +69,7 @@ export function renderFeedList(
         details.appendChild(summary);
 
         details.appendChild(buildGroup(playlistRows, options));
-        container.appendChild(details);
+        parent.appendChild(details);
     }
 }
 

@@ -23,7 +23,7 @@ describe("popup init – synchronous render", () => {
     });
 
     it("renders 4 system rows + 1 playlist row for a real ChannelInfo", () => {
-        init(container, { info: VALID_INFO, copy: vi.fn().mockResolvedValue(undefined) });
+        init(container, { channels: [VALID_INFO], copy: vi.fn().mockResolvedValue(undefined) });
 
         const rows = container.querySelectorAll(".feed-row");
         expect(rows).toHaveLength(5);
@@ -31,9 +31,34 @@ describe("popup init – synchronous render", () => {
         expect(rows[4]?.classList.contains("feed-row--playlist")).toBe(true);
     });
 
+    it("renders one titled section per channel, in order, when given several", () => {
+        const collaborator: ChannelInfo = {
+            channelId: asChannelId("UCyJBs-1lmStflB4Pl44zygw"),
+            channelTitle: "Roxy Striar",
+            playlists: [],
+        };
+        init(container, {
+            channels: [VALID_INFO, collaborator],
+            copy: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const sections = container.querySelectorAll(".feed-list__channel");
+        expect(sections).toHaveLength(2);
+        expect(sections[0]?.querySelector(".feed-list__channel-title")?.textContent).toBe(
+            "Marques Brownlee",
+        );
+        expect(sections[0]?.querySelectorAll(".feed-row")).toHaveLength(5);
+        expect(sections[1]?.querySelector(".feed-list__channel-title")?.textContent).toBe(
+            "Roxy Striar",
+        );
+        expect(sections[1]?.querySelector(".feed-row--uploads .feed-row__url")?.textContent).toBe(
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCyJBs-1lmStflB4Pl44zygw",
+        );
+    });
+
     it("passes the injected copy function through to row buttons", async () => {
         const copy = vi.fn().mockResolvedValue(undefined);
-        init(container, { info: VALID_INFO, copy });
+        init(container, { channels: [VALID_INFO], copy });
 
         const firstButton = container.querySelector<HTMLButtonElement>(".feed-row__copy");
         firstButton?.click();
@@ -58,18 +83,18 @@ describe("popup boot – async wiring", () => {
         container.remove();
     });
 
-    it("renders feeds when fetchChannelInfo resolves to a ChannelInfo", async () => {
+    it("renders feeds when fetchChannelInfo resolves to a channel", async () => {
         await boot(container, {
-            fetchChannelInfo: () => Promise.resolve(VALID_INFO),
+            fetchChannelInfo: () => Promise.resolve([VALID_INFO]),
             copy: vi.fn(),
         });
 
         expect(container.querySelectorAll(".feed-row")).toHaveLength(5);
     });
 
-    it("renders the empty-state message when fetchChannelInfo resolves to null", async () => {
+    it("renders the empty-state message when fetchChannelInfo resolves to no channels", async () => {
         await boot(container, {
-            fetchChannelInfo: () => Promise.resolve(null),
+            fetchChannelInfo: () => Promise.resolve([]),
             copy: vi.fn(),
         });
 
@@ -118,11 +143,13 @@ describe("fetchChannelInfoFromActiveTab", () => {
 
     it("queries the active tab and injects extract-channel.js", async () => {
         mockBrowser.tabs.query.mockResolvedValue([{ id: 42 }]);
-        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([
+            { frameId: 0, result: [VALID_INFO] },
+        ]);
 
-        const info = await fetchChannelInfoFromActiveTab();
+        const channels = await fetchChannelInfoFromActiveTab();
 
-        expect(info).toEqual(VALID_INFO);
+        expect(channels).toEqual([VALID_INFO]);
         expect(mockBrowser.tabs.query).toHaveBeenCalledWith({
             active: true,
             currentWindow: true,
@@ -133,30 +160,30 @@ describe("fetchChannelInfoFromActiveTab", () => {
         });
     });
 
-    it("returns null when the active tab has no id", async () => {
+    it("returns no channels when the active tab has no id", async () => {
         mockBrowser.tabs.query.mockResolvedValue([{}]);
-        const info = await fetchChannelInfoFromActiveTab();
-        expect(info).toBeNull();
+        const channels = await fetchChannelInfoFromActiveTab();
+        expect(channels).toEqual([]);
         expect(mockBrowser.scripting.executeScript).not.toHaveBeenCalled();
     });
 
-    it("returns null when tabs.query returns an empty array", async () => {
+    it("returns no channels when tabs.query returns an empty array", async () => {
         mockBrowser.tabs.query.mockResolvedValue([]);
-        const info = await fetchChannelInfoFromActiveTab();
-        expect(info).toBeNull();
+        const channels = await fetchChannelInfoFromActiveTab();
+        expect(channels).toEqual([]);
         expect(mockBrowser.scripting.executeScript).not.toHaveBeenCalled();
     });
 
-    it("returns null when executeScript yields no results", async () => {
+    it("returns no channels when executeScript yields no results", async () => {
         mockBrowser.tabs.query.mockResolvedValue([{ id: 1 }]);
         mockBrowser.scripting.executeScript.mockResolvedValue([]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
-    it("returns null when the script result has no channelId", async () => {
+    it("returns no channels when the script result is null", async () => {
         mockBrowser.tabs.query.mockResolvedValue([{ id: 1 }]);
         mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: null }]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("rejects results whose channelId is not UC-prefixed", async () => {
@@ -164,10 +191,10 @@ describe("fetchChannelInfoFromActiveTab", () => {
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {
                 frameId: 0,
-                result: { channelId: "NOTUC123", channelTitle: "x", playlists: [] },
+                result: [{ channelId: "NOTUC123", channelTitle: "x", playlists: [] }],
             },
         ]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("rejects results with a non-string channelTitle", async () => {
@@ -175,10 +202,12 @@ describe("fetchChannelInfoFromActiveTab", () => {
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {
                 frameId: 0,
-                result: { channelId: "UCxxxxxxxxxxxxxxxxxxxxxx", channelTitle: "", playlists: [] },
+                result: [
+                    { channelId: "UCxxxxxxxxxxxxxxxxxxxxxx", channelTitle: "", playlists: [] },
+                ],
             },
         ]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("rejects results whose playlists is not an array", async () => {
@@ -186,14 +215,16 @@ describe("fetchChannelInfoFromActiveTab", () => {
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {
                 frameId: 0,
-                result: {
-                    channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
-                    channelTitle: "Name",
-                    playlists: "nope",
-                },
+                result: [
+                    {
+                        channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
+                        channelTitle: "Name",
+                        playlists: "nope",
+                    },
+                ],
             },
         ]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("rejects results whose playlist entries lack listId/name", async () => {
@@ -201,14 +232,16 @@ describe("fetchChannelInfoFromActiveTab", () => {
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {
                 frameId: 0,
-                result: {
-                    channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
-                    channelTitle: "Name",
-                    playlists: [{ listId: "PL1", name: "" }],
-                },
+                result: [
+                    {
+                        channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
+                        channelTitle: "Name",
+                        playlists: [{ listId: "PL1", name: "" }],
+                    },
+                ],
             },
         ]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("rejects results whose playlist entries are not objects", async () => {
@@ -216,14 +249,16 @@ describe("fetchChannelInfoFromActiveTab", () => {
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {
                 frameId: 0,
-                result: {
-                    channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
-                    channelTitle: "Name",
-                    playlists: [null],
-                },
+                result: [
+                    {
+                        channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
+                        channelTitle: "Name",
+                        playlists: [null],
+                    },
+                ],
             },
         ]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("accepts a result with empty playlists", async () => {
@@ -231,21 +266,40 @@ describe("fetchChannelInfoFromActiveTab", () => {
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {
                 frameId: 0,
-                result: {
-                    channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
-                    channelTitle: "Name",
-                    playlists: [],
-                },
+                result: [
+                    {
+                        channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
+                        channelTitle: "Name",
+                        playlists: [],
+                    },
+                ],
             },
         ]);
-        const info = await fetchChannelInfoFromActiveTab();
+        const [info] = await fetchChannelInfoFromActiveTab();
         expect(info?.channelId).toBe("UCxxxxxxxxxxxxxxxxxxxxxx");
+    });
+
+    it("rejects the whole result when any channel in it is invalid", async () => {
+        mockBrowser.tabs.query.mockResolvedValue([{ id: 1 }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([
+            {
+                frameId: 0,
+                result: [VALID_INFO, { channelId: "NOTUC123", channelTitle: "x", playlists: [] }],
+            },
+        ]);
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
+    });
+
+    it.each([null, "string"])("rejects a channel entry that is %s", async (entry) => {
+        mockBrowser.tabs.query.mockResolvedValue([{ id: 1 }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: [entry] }]);
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
     it("rejects a primitive script result", async () => {
         mockBrowser.tabs.query.mockResolvedValue([{ id: 1 }]);
         mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: "string" }]);
-        expect(await fetchChannelInfoFromActiveTab()).toBeNull();
+        expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 });
 
@@ -263,11 +317,13 @@ describe("fetchChannelInfoFromActiveTab – ?tabId override", () => {
 
     it("targets the ?tabId tab directly without querying the active tab", async () => {
         window.history.replaceState(null, "", "/popup.html?tabId=7");
-        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([
+            { frameId: 0, result: [VALID_INFO] },
+        ]);
 
-        const info = await fetchChannelInfoFromActiveTab();
+        const channels = await fetchChannelInfoFromActiveTab();
 
-        expect(info).toEqual(VALID_INFO);
+        expect(channels).toEqual([VALID_INFO]);
         expect(mockBrowser.tabs.query).not.toHaveBeenCalled();
         expect(mockBrowser.scripting.executeScript).toHaveBeenCalledWith({
             target: { tabId: 7 },
@@ -278,7 +334,9 @@ describe("fetchChannelInfoFromActiveTab – ?tabId override", () => {
     it("ignores a non-numeric tabId and falls back to the active tab", async () => {
         window.history.replaceState(null, "", "/popup.html?tabId=abc");
         mockBrowser.tabs.query.mockResolvedValue([{ id: 99 }]);
-        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([
+            { frameId: 0, result: [VALID_INFO] },
+        ]);
 
         await fetchChannelInfoFromActiveTab();
 
@@ -292,7 +350,9 @@ describe("fetchChannelInfoFromActiveTab – ?tabId override", () => {
     it("ignores a negative tabId and falls back to the active tab", async () => {
         window.history.replaceState(null, "", "/popup.html?tabId=-3");
         mockBrowser.tabs.query.mockResolvedValue([{ id: 99 }]);
-        mockBrowser.scripting.executeScript.mockResolvedValue([{ frameId: 0, result: VALID_INFO }]);
+        mockBrowser.scripting.executeScript.mockResolvedValue([
+            { frameId: 0, result: [VALID_INFO] },
+        ]);
 
         await fetchChannelInfoFromActiveTab();
 
