@@ -27,7 +27,7 @@ Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Kee
 
 > Click the icon on any YouTube page to copy RSS/Atom feed URLs: channel uploads, long-form videos only, Shorts only, Live only, or any named playlist.
 
-## Description (≤ 15000 chars; AMO markdown — bold, italic, links, lists, blockquote, no headings)
+## Description (≤ 15000 chars; AMO markdown – bold, italic, links, lists, blockquote, no headings)
 
 > **RSStreams finds every RSS/Atom feed reachable from the YouTube page you're on, and copies the one you want with a click.**
 >
