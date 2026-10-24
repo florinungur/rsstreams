@@ -1,0 +1,14 @@
+# Markdown stays with oxfmt, which aligns tables the way prettier does and runs in
+# CI; prettier-markdown would fight it over nested-list indentation.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks
+        entry: gitleaks protect --staged --verbose --redact
+        language: system
+        pass_filenames: false
