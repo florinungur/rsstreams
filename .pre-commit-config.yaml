@@ -1,5 +1,6 @@
-# Markdown stays with oxfmt, which aligns tables the way prettier does and runs in
-# CI; prettier-markdown would fight it over nested-list indentation.
+# Markdown stays with oxfmt, which runs in CI and, reading .editorconfig, formats
+# tables and lists as prettier does; prettier-markdown would fight it over fenced
+# JS, which each wraps at its own default width.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
