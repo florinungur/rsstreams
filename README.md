@@ -24,18 +24,20 @@ RSStreams collects nothing, sends nothing to me, and has no analytics or remote 
 
 ```sh
 pnpm install
-pnpm wxt:prepare    # generate .wxt/ types after install (scripts are ignored by default)
+pnpm wxt:prepare    # generate .wxt/ types after install
 pnpm dev            # load extension in a temp Firefox profile
 pnpm test           # vitest watch mode
 pnpm test:run       # unit tests + 100% coverage gate
 pnpm build          # produce .output/firefox-mv3/
 pnpm e2e            # build the e2e variant + run the Selenium suite (needs Firefox)
 pnpm test:canary    # live-network probe: re-fetch YouTube, assert selectors still work
-pnpm format         # oxfmt over code and markdown, reading .editorconfig
-pnpm format:check   # what CI runs
+pnpm format         # oxfmt, styled by .editorconfig
+pnpm format:check   # check only, as CI does
 ```
 
 Lifecycle scripts are blocked globally for supply-chain safety; `wxt prepare` runs explicitly via the `wxt:prepare` script.
+
+Markdown goes through oxfmt with the code rather than through prettier, since the two wrap fenced JavaScript at different widths and would undo each other.
 
 ### End-to-end tests
 

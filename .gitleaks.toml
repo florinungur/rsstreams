@@ -4,5 +4,5 @@ useDefault = true
 [[allowlists]]
 description = "Saved YouTube page HTML used as test fixtures, captured logged out: its public client keys trip gcp-api-key, and its page-state entity keys and tokens trip generic-api-key"
 paths = ['''test/fixtures/.*\.html$''']
-# Only those two rules, so gitleaks still refuses a private key committed there.
+# Only those two rules, so every other rule still scans the fixtures.
 targetRules = ["gcp-api-key", "generic-api-key"]
