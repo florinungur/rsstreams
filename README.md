@@ -31,6 +31,8 @@ pnpm test:run       # unit tests + 100% coverage gate
 pnpm build          # produce .output/firefox-mv3/
 pnpm e2e            # build the e2e variant + run the Selenium suite (needs Firefox)
 pnpm test:canary    # live-network probe: re-fetch YouTube, assert selectors still work
+pnpm format         # oxfmt over code and markdown, reading .editorconfig
+pnpm format:check   # what CI runs
 ```
 
 Lifecycle scripts are blocked globally for supply-chain safety; `wxt prepare` runs explicitly via the `wxt:prepare` script.
