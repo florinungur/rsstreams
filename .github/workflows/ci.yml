@@ -3,12 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "LICENSE"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "LICENSE"
   workflow_dispatch:
     inputs:
       ref:
@@ -33,9 +29,6 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11.3.0
-          run_install: false
 
       - uses: actions/setup-node@v6
         with:
@@ -78,9 +71,6 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11.3.0
-          run_install: false
 
       - uses: actions/setup-node@v6
         with:
