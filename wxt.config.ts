@@ -29,6 +29,9 @@ export default defineConfig({
             default_title: "Show feeds for this page",
         },
     }),
+    // This repo lints with oxlint, so WXT skips probing for the ESLint that web-ext
+    // installs and writing a globals file for it.
+    imports: { eslintrc: { enabled: false } },
     zip: {
         excludeSources: ["coverage/**", "docs/screenshots/**"],
     },

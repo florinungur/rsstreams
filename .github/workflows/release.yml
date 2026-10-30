@@ -26,9 +26,10 @@ jobs:
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v6
+        # This job holds the AMO secret, so it installs without the pnpm cache:
+        # pnpm reuses a restored store's files without re-hashing them.
         with:
           node-version: 26
-          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -49,7 +50,9 @@ jobs:
             exit 1
           fi
           SOURCES=$(ls .output/*-sources.zip)
-          pnpm dlx web-ext sign \
+          # Every package this step loads can read AMO_JWT_SECRET, so web-ext
+          # runs from the lockfile rather than through `pnpm dlx`.
+          pnpm exec web-ext sign \
             --channel listed \
             --source-dir .output/firefox-mv3 \
             --artifacts-dir .output/web-ext-artifacts \
