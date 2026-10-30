@@ -1,6 +1,6 @@
 # AMO listing copy
 
-Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Keep this in sync with `manifest.json` and `PRIVACY.md` on each release.
+This file holds ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Keep it in sync with `manifest.json` and `PRIVACY.md` on each release.
 
 ## Identity
 
@@ -67,7 +67,7 @@ Ready-to-paste metadata for the addons.mozilla.org Developer Hub submission. Kee
 
 ## Data collection (AMO structured disclosure)
 
-Select **"Does not collect any data."** Matches `data_collection_permissions: { required: ["none"] }` in the manifest.
+Select **"Does not collect any data."** The choice matches `data_collection_permissions: { required: ["none"] }` in the manifest.
 
 ## Reviewer notes
 
@@ -79,7 +79,7 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 >     pnpm wxt:prepare
 >     pnpm build
 >
-> Output lands in `.output/firefox-mv3/` and matches the uploaded package. Built with WXT + Vite (exact versions in the included package.json). The package has no postinstall script, so `wxt prepare` runs as its own step.
+> Output lands in `.output/firefox-mv3/` and matches the uploaded package. Built with WXT + Vite (exact versions in the included pnpm-lock.yaml). The package has no postinstall script, so `wxt prepare` runs as its own step.
 >
 > No remote code, no eval, no obfuscation. Minified by the bundler; original sources are in the zip.
 >
@@ -90,11 +90,11 @@ Select **"Does not collect any data."** Matches `data_collection_permissions: { 
 
 ## Source code submission
 
-Required (we use a bundler). Upload `.output/rsstreams-0.1.4-sources.zip` (produced by `pnpm zip`; CI fails if this filename doesn't track package.json's version). It contains the full source, `package.json`, `pnpm-lock.yaml`, and `wxt.config.ts`; it excludes `node_modules`, `.output`, `coverage`, and dotfiles.
+AMO requires the source code because we use a bundler. Upload `.output/rsstreams-0.1.4-sources.zip` (produced by `pnpm zip`; CI fails if this filename doesn't track package.json's version). It holds every project file except those WXT excludes by default and those `zip.excludeSources` in `wxt.config.ts` lists.
 
 ## Screenshots
 
-Committed in `docs/screenshots/` (2784×1930, ~1.44:1, dark mode). Upload in this order:
+The screenshots are committed in `docs/screenshots/` (2784×1930, ~1.44:1, dark mode). Upload in this order:
 
 1. `01-channel-home.png` – popup on `/@mkbhd`: 4 system rows, Playlists (23) collapsed.
 2. `02-channel-home-playlists.png` – same page, Playlists expanded.
