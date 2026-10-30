@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Git ref to build (default: triggering ref)"
-        required: false
-        default: ""
 
 permissions:
   contents: read
@@ -25,8 +20,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref || github.sha }}
 
       - uses: pnpm/action-setup@v6
 
@@ -57,7 +50,7 @@ jobs:
         run: pnpm build
 
       - name: web-ext lint
-        run: pnpm dlx web-ext lint --source-dir .output/firefox-mv3
+        run: pnpm exec web-ext lint --source-dir .output/firefox-mv3
 
       - name: Check AMO listing metadata in sync
         run: pnpm check:listing
@@ -67,8 +60,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.ref || github.sha }}
 
       - uses: pnpm/action-setup@v6
 
