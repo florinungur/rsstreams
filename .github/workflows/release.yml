@@ -19,7 +19,9 @@ concurrency:
 jobs:
   sign:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # web-ext sign waits up to 5 minutes for validation and 15 for approval, so the
+    # job outlasts both and web-ext's own timeout says where the submission stands.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
