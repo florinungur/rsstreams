@@ -1,13 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
     asChannelId,
     asListId,
     channelFeedUrl,
+    type ChannelId,
     liveListId,
     longFormListId,
     playlistFeedUrl,
     shortsListId,
-    uploadsListId,
 } from "./youtube-ids";
 
 const CHANNEL = asChannelId("UCBJycsmduvYEL83R_U4JriQ");
@@ -23,6 +23,12 @@ describe("asChannelId", () => {
     });
 });
 
+describe("ChannelId", () => {
+    it("rejects a plain string at compile time", () => {
+        expectTypeOf<string>().not.toExtend<ChannelId>();
+    });
+});
+
 describe("asListId", () => {
     it("throws on an empty id", () => {
         expect(() => asListId("")).toThrow(/non-empty/);
@@ -30,17 +36,6 @@ describe("asListId", () => {
 
     it("throws on a UC channel id", () => {
         expect(() => asListId(`UC${SUFFIX}`)).toThrow(/must not be a "UC" channel id/);
-    });
-});
-
-describe("uploadsListId", () => {
-    it("replaces UC prefix with UU", () => {
-        expect(uploadsListId(CHANNEL)).toBe(`UU${SUFFIX}`);
-    });
-
-    it("rejects a plain string at compile time", () => {
-        // @ts-expect-error a raw string is not a ChannelId
-        expect(() => uploadsListId("UCnotBranded")).not.toThrow();
     });
 });
 

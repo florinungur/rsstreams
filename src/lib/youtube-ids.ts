@@ -1,5 +1,5 @@
-// The UULF/UUSH/UULV prefixes are undocumented and may change; only UU (uploads)
-// is stable. See https://blog.amen6.com/blog/2025/01/no-shorts-please-hidden-youtube-rss-feed-urls/
+// The UULF/UUSH/UULV prefixes are undocumented and may change.
+// See https://blog.amen6.com/blog/2025/01/no-shorts-please-hidden-youtube-rss-feed-urls/
 
 declare const brand: unique symbol;
 
@@ -39,11 +39,6 @@ export function asListId(value: string): ListId {
 
 function stripChannelPrefix(channelId: ChannelId): string {
     return channelId.slice(CHANNEL_PREFIX.length);
-}
-
-/** UC… → UU… (canonical "all uploads" playlist). */
-export function uploadsListId(channelId: ChannelId): ListId {
-    return `UU${stripChannelPrefix(channelId)}` as ListId;
 }
 
 /** UC… → UULF… (long-form videos only; excludes Shorts and Live). */

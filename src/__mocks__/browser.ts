@@ -7,9 +7,6 @@ export interface MockBrowser {
     scripting: {
         executeScript: ReturnType<typeof vi.fn>;
     };
-    runtime: {
-        getManifest: ReturnType<typeof vi.fn>;
-    };
 }
 
 /**
@@ -20,7 +17,6 @@ export function installBrowserMock(): MockBrowser {
     const mock: MockBrowser = {
         tabs: { query: vi.fn() },
         scripting: { executeScript: vi.fn() },
-        runtime: { getManifest: vi.fn() },
     };
     vi.stubGlobal("browser", mock);
     return mock;
