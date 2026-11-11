@@ -10,6 +10,7 @@ import {
     resolveChannelInfo,
     whenDocumentReady,
 } from "./parse-channel-info";
+import { continuationItem, continuationPage, lockup, tabPage } from "../../test/playlists-tab";
 
 const FIXTURE_DIR = join(__dirname, "..", "..", "test", "fixtures");
 
@@ -580,45 +581,6 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
         };
         expect(parsePlaylistsTab(data)).toEqual([{ listId: "PLSAME001", name: "Lockup" }]);
     });
-});
-
-const lockup = (contentId: string, name: string): unknown => ({
-    lockupViewModel: {
-        contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
-        contentId,
-        metadata: { lockupMetadataViewModel: { title: { content: name } } },
-    },
-});
-const continuationItem = (token: string): unknown => ({
-    continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token } } },
-});
-// The tab's grid as ytInitialData holds it.
-const tabPage = (items: unknown[]): Record<string, unknown> => ({
-    contents: {
-        twoColumnBrowseResultsRenderer: {
-            tabs: [
-                {
-                    tabRenderer: {
-                        content: {
-                            sectionListRenderer: {
-                                contents: [
-                                    {
-                                        itemSectionRenderer: {
-                                            contents: [{ gridRenderer: { items } }],
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
-            ],
-        },
-    },
-});
-// The same items as a continuation response holds them.
-const continuationPage = (items: unknown[]): unknown => ({
-    onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: items } }],
 });
 
 describe("Playlists-tab paging", () => {

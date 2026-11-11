@@ -1,6 +1,4 @@
 // Stub for the WXT build-time global, so the entrypoint imports under jsdom. It
-// hands back the entrypoint's main function.
+// hands back the definition, as WXT's own does.
 
-(
-    globalThis as unknown as { defineUnlistedScript: (definition: { main: unknown }) => unknown }
-).defineUnlistedScript = (definition) => definition.main;
+Object.assign(globalThis, { defineUnlistedScript: (definition: unknown) => definition });
