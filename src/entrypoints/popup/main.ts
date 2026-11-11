@@ -94,23 +94,26 @@ export async function fetchChannelInfoFromActiveTab(): Promise<ChannelInfo[]> {
     return Array.isArray(value) && value.every(isChannelInfo) ? value : [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
 function isChannelInfo(value: unknown): value is ChannelInfo {
-    if (typeof value !== "object" || value === null) return false;
-    const v = value as Record<string, unknown>;
-    if (typeof v["channelId"] !== "string" || !isChannelId(v["channelId"])) return false;
-    if (typeof v["channelTitle"] !== "string" || v["channelTitle"].length === 0) return false;
-    if (!Array.isArray(v["playlists"])) return false;
-    return v["playlists"].every(isNamedPlaylist);
+    if (!isRecord(value)) return false;
+    if (typeof value["channelId"] !== "string" || !isChannelId(value["channelId"])) return false;
+    if (typeof value["channelTitle"] !== "string" || value["channelTitle"].length === 0)
+        return false;
+    if (!Array.isArray(value["playlists"])) return false;
+    return value["playlists"].every(isNamedPlaylist);
 }
 
 function isNamedPlaylist(value: unknown): value is NamedPlaylist {
-    if (typeof value !== "object" || value === null) return false;
-    const v = value as Record<string, unknown>;
+    if (!isRecord(value)) return false;
     return (
-        typeof v["listId"] === "string" &&
-        v["listId"].length > 0 &&
-        typeof v["name"] === "string" &&
-        v["name"].length > 0
+        typeof value["listId"] === "string" &&
+        value["listId"].length > 0 &&
+        typeof value["name"] === "string" &&
+        value["name"].length > 0
     );
 }
 

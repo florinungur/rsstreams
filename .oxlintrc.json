@@ -1,7 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
     "plugins": ["typescript", "unicorn", "promise", "import"],
-    "options": { "typeAware": true },
+    "options": { "typeAware": true, "denyWarnings": true },
     "categories": {
         "correctness": "error",
         "perf": "warn",
@@ -18,7 +18,15 @@
             }
         ],
         "no-misused-promises": "error",
-        "no-console": ["warn", { "allow": ["warn", "error"] }]
+        "no-console": ["warn", { "allow": ["warn", "error"] }],
+        "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }]
     },
+    "overrides": [
+        {
+            "files": ["**/*.test.ts", "test/**", "e2e/**"],
+            "rules": { "typescript/no-unsafe-type-assertion": "off" }
+        },
+        { "files": ["scripts/**"], "rules": { "no-console": "off" } }
+    ],
     "ignorePatterns": [".output", ".wxt", "node_modules", "coverage"]
 }
