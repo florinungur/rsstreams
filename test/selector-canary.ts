@@ -73,12 +73,13 @@ async function fetchYouTube(path: string, body?: unknown): Promise<string> {
             if (response.ok) {
                 // A body read can fail the same transient ways, so it stays
                 // inside the try.
-                const html = await response.text();
-                // YouTube sometimes serves an empty shell (no <title>, and
+                const text = await response.text();
+                // YouTube sometimes serves a page as an empty shell (no <title>, and
                 // ytInitialData with only responseContext) for its client JS to
                 // fill in. The last attempt returns it, so the assertions fail on it.
-                if (verb === "POST" || html.includes("<title>") || attempt === MAX_ATTEMPTS) {
-                    return html;
+                const emptyShell = verb === "GET" && !text.includes("<title>");
+                if (!emptyShell || attempt === MAX_ATTEMPTS) {
+                    return text;
                 }
                 await sleep(retryDelayMs(attempt));
                 continue;
