@@ -346,6 +346,7 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
     it.each([
         ["Show", "LOCKUP_CONTENT_TYPE_SHOW"],
         ["Course", "LOCKUP_CONTENT_TYPE_COURSE"],
+        ["Podcast", "LOCKUP_CONTENT_TYPE_PODCAST"],
     ])("keeps %s lockups, which carry PL playlist ids", (_kind, contentType) => {
         const data = {
             contents: {

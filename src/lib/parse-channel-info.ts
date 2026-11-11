@@ -250,11 +250,12 @@ function collectLockupPlaylists(node: unknown, out: NamedPlaylist[], seen: Set<s
     const lockup = node["lockupViewModel"];
     if (isRecord(lockup)) {
         const contentType = pickString(lockup["contentType"]);
-        // A Show or a Course is a playlist under another lockup type.
+        // A Show, a Course, or a Podcast is a playlist under another lockup type.
         if (
             contentType === "LOCKUP_CONTENT_TYPE_PLAYLIST" ||
             contentType === "LOCKUP_CONTENT_TYPE_SHOW" ||
-            contentType === "LOCKUP_CONTENT_TYPE_COURSE"
+            contentType === "LOCKUP_CONTENT_TYPE_COURSE" ||
+            contentType === "LOCKUP_CONTENT_TYPE_PODCAST"
         ) {
             const contentId = pickString(lockup["contentId"]);
             if (contentId && contentId.startsWith("PL") && !seen.has(contentId)) {
