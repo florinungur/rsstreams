@@ -27,7 +27,7 @@ async function fetchPlaylistsTab(channelId: string, signal: AbortSignal): Promis
     return response.text();
 }
 
-// The request YouTube's own page makes for the next 30 playlists as you scroll.
+// The request YouTube's own page makes for the next page of playlists on scroll.
 // It is answered without cookies, so it carries none.
 async function fetchPlaylistsContinuation(
     token: string,
@@ -70,7 +70,7 @@ function pageKey(href: string): string {
     return [url.pathname, params.get("v"), params.get("list")].join("|");
 }
 
-// The Playlists tab holds the full list, 30 to a page; the page itself carries at
+// The Playlists tab holds the full list, a page at a time; the open page carries at
 // most the Home-tab shelves. One deadline covers every page of a channel's list,
 // and a page that fails keeps the ones read before it.
 async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {

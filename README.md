@@ -47,7 +47,7 @@ The `executeScript` API only injects on hosts the manifest grants, so `pnpm buil
 
 ### Selector canary
 
-YouTube ships layout changes silently. Running `pnpm test:canary` re-fetches a few live pages and asserts the ytInitialData parser and DOM selector chain still resolve a channel. It runs nightly in CI (`.github/workflows/selector-canary.yml`) and files a single tracking issue when it goes red – early warning before users hit an empty popup. It's excluded from `pnpm test:run` so the unit suite stays offline and deterministic.
+YouTube ships layout changes silently. Running `pnpm test:canary` re-fetches a few live pages and asserts the ytInitialData parser and DOM selector chain still resolve a channel, and that YouTube still answers a Playlists tab's continuation with its next page. It runs nightly in CI (`.github/workflows/selector-canary.yml`) and files a single tracking issue when it goes red – early warning before users hit an empty popup. It's excluded from `pnpm test:run` so the unit suite stays offline and deterministic.
 
 ### Icons
 
