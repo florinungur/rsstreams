@@ -5,13 +5,16 @@
 
 import { describe, expect, it, type TestContext } from "vitest";
 import {
+    extractInnertubeClient,
     extractYtInitialData,
     parseChannelInfo,
     parsePlaylistsTab,
+    playlistsContinuation,
 } from "@/lib/parse-channel-info";
 import { type SelfTestProbeResult, selfTest } from "@/lib/selectors";
 
 const CHANNEL_ID = "UCBJycsmduvYEL83R_U4JriQ"; // Marques Brownlee
+const PAGED_CHANNEL_ID = "UC_x5XG1OV2P6uZZ5FSM9Ttw"; // Google for Developers, with several pages of playlists
 const COLLAB_VIDEO_ID = "TzMAPc4ucKQ"; // Credited to four collaborating channels
 const COLLAB_CHANNEL_IDS = [
     "UCPDis9pjXuqyI7RYLJ-TTSA", // FailArmy, the uploader
@@ -46,13 +49,18 @@ function retryDelayMs(attempt: number, response?: Response): number {
     return BASE_BACKOFF_MS * 2 ** (attempt - 1) + Math.floor(Math.random() * 500);
 }
 
-async function fetchYouTube(path: string): Promise<string> {
+// A GET, or with `body` the JSON POST YouTube's own page makes to its API.
+async function fetchYouTube(path: string, body?: unknown): Promise<string> {
+    const verb = body === undefined ? "GET" : "POST";
     let lastCause = "";
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         let response: Response;
         try {
             response = await fetch(`https://www.youtube.com${path}`, {
+                method: verb,
+                ...(body !== undefined && { body: JSON.stringify(body) }),
                 headers: {
+                    ...(body !== undefined && { "Content-Type": "application/json" }),
                     // Mimic real Firefox so YouTube serves the same markup. The
                     // SOCS cookie answers the consent prompt, so EU and UK
                     // requests skip the consent.youtube.com redirect.
@@ -69,7 +77,7 @@ async function fetchYouTube(path: string): Promise<string> {
                 // YouTube sometimes serves an empty shell (no <title>, and
                 // ytInitialData with only responseContext) for its client JS to
                 // fill in. The last attempt returns it, so the assertions fail on it.
-                if (html.includes("<title>") || attempt === MAX_ATTEMPTS) {
+                if (verb === "POST" || html.includes("<title>") || attempt === MAX_ATTEMPTS) {
                     return html;
                 }
                 await sleep(retryDelayMs(attempt));
@@ -79,7 +87,7 @@ async function fetchYouTube(path: string): Promise<string> {
             lastCause = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
             if (attempt === MAX_ATTEMPTS) {
                 throw new FetchUnavailableError(
-                    `GET ${path} -> ${lastCause} after ${attempt} attempts`,
+                    `${verb} ${path} -> ${lastCause} after ${attempt} attempts`,
                 );
             }
             await sleep(retryDelayMs(attempt));
@@ -91,21 +99,21 @@ async function fetchYouTube(path: string): Promise<string> {
             // Deliberately NOT skip-class: 403 = runner bot-blocked, 404 = the
             // pinned video/channel is gone. Skipping these would keep the job
             // green forever while the canary is blind – a human must look.
-            throw new Error(`GET ${path} -> HTTP ${response.status}`);
+            throw new Error(`${verb} ${path} -> HTTP ${response.status}`);
         }
         if (attempt === MAX_ATTEMPTS) {
             throw new FetchUnavailableError(
-                `GET ${path} -> HTTP ${response.status} after ${attempt} attempts`,
+                `${verb} ${path} -> HTTP ${response.status} after ${attempt} attempts`,
             );
         }
         await sleep(retryDelayMs(attempt, response));
     }
-    throw new FetchUnavailableError(`GET ${path} -> ${lastCause}`); // unreachable; satisfies the type checker
+    throw new FetchUnavailableError(`${verb} ${path} -> ${lastCause}`); // unreachable; satisfies the type checker
 }
 
-async function fetchYouTubeOrSkip(ctx: TestContext, path: string): Promise<string> {
+async function fetchYouTubeOrSkip(ctx: TestContext, path: string, body?: unknown): Promise<string> {
     try {
-        return await fetchYouTube(path);
+        return await fetchYouTube(path, body);
     } catch (error) {
         if (error instanceof FetchUnavailableError) {
             ctx.skip(`fetch unavailable: ${error.message}`);
@@ -184,5 +192,25 @@ describe("selector canary (live YouTube)", () => {
         const playlists = parsePlaylistsTab(extractYtInitialData(doc));
         expect(playlists.length, served(doc, html)).toBeGreaterThan(0);
         expect(playlists[0]?.listId, served(doc, html)).toMatch(/^PL/);
+    });
+
+    it("playlists tab: the first page's continuation answers with more playlists", async (ctx) => {
+        const html = await fetchYouTubeOrSkip(ctx, `/channel/${PAGED_CHANNEL_ID}/playlists`);
+        const doc = parse(html);
+        const first = extractYtInitialData(doc);
+        const continuation = playlistsContinuation(first);
+        const client = extractInnertubeClient(html);
+        expect(continuation, served(doc, html)).not.toBeNull();
+        expect(client, served(doc, html)).not.toBeNull();
+
+        const next: unknown = JSON.parse(
+            await fetchYouTubeOrSkip(ctx, "/youtubei/v1/browse?prettyPrint=false", {
+                context: { client },
+                continuation,
+            }),
+        );
+        const known = new Set(parsePlaylistsTab(first).map((p) => p.listId));
+        const added = parsePlaylistsTab(next).filter((p) => !known.has(p.listId));
+        expect(added.length, "the continuation response added no playlist").toBeGreaterThan(0);
     });
 });

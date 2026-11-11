@@ -1,5 +1,79 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const lockup = (contentId: string, name: string): unknown => ({
+    lockupViewModel: {
+        contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+        contentId,
+        metadata: { lockupMetadataViewModel: { title: { content: name } } },
+    },
+});
+const continuationItem = (token: string): unknown => ({
+    continuationItemRenderer: {
+        continuationEndpoint: { continuationCommand: { token } },
+    },
+});
+const continuationPage = (items: unknown[]): unknown => ({
+    onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: items } }],
+});
+const YTCFG = `<script>ytcfg.set({"INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"2.0","hl":"en","gl":"GB","visitorData":"V"}}});</script>`;
+// The tab's own page: one playlist and a token for the next page.
+const tabHtml = (ytcfg: string): string =>
+    `<html><body>${ytcfg}<script>var ytInitialData = ${JSON.stringify({
+        contents: {
+            twoColumnBrowseResultsRenderer: {
+                tabs: [
+                    {
+                        tabRenderer: {
+                            content: {
+                                sectionListRenderer: {
+                                    contents: [
+                                        lockup("PLPAGE00001", "One"),
+                                        continuationItem("TOKEN-1"),
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    })};</script></body></html>`;
+
+// Serves `html` for the tab's page and `continuations` in turn for each
+// POST, the last one again once they run out.
+const serve = (html: string, continuations: Array<() => Promise<unknown>>) => {
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+        if (init?.method !== "POST") {
+            return Promise.resolve({ ok: true, text: () => Promise.resolve(html) });
+        }
+        const next = continuations.length > 1 ? continuations.shift() : continuations[0];
+        return next!();
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+};
+const answer = (page: unknown) => () =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve(page) });
+const posts = (fetchMock: ReturnType<typeof serve>) =>
+    fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+
+const playlistsOf = async (): Promise<Array<{ listId: string; name: string }>> => {
+    (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+        metadata: {
+            channelMetadataRenderer: {
+                externalId: "UCSMOKEXXXXXXXXXXXXXXXXX",
+                title: "Smoke Channel",
+            },
+        },
+    };
+    const mod = await import("@/entrypoints/extract-channel");
+    const spec = mod.default as unknown as () => Promise<
+        Array<{ playlists: Array<{ listId: string; name: string }> }>
+    >;
+    const [result] = await spec();
+    return result?.playlists ?? [];
+};
+
 describe("entrypoint shells", () => {
     it("background.ts is a no-op spec function", async () => {
         const mod = await import("@/entrypoints/background");
@@ -231,6 +305,76 @@ describe("entrypoint shells", () => {
             >;
             const [result] = await spec();
             expect(result?.playlists).toEqual([{ listId: "PLKEEP00001", name: "Home Shelf" }]);
+        });
+
+        describe("a Playlists tab longer than one page", () => {
+            it("follows each continuation to the last page, sending only the client", async () => {
+                const fetchMock = serve(tabHtml(YTCFG), [
+                    answer(
+                        continuationPage([
+                            lockup("PLPAGE00002", "Two"),
+                            lockup("PLPAGE00001", "One"),
+                            continuationItem("TOKEN-2"),
+                        ]),
+                    ),
+                    answer(continuationPage([lockup("PLPAGE00003", "Three")])),
+                ]);
+
+                expect(await playlistsOf()).toEqual([
+                    { listId: "PLPAGE00001", name: "One" },
+                    { listId: "PLPAGE00002", name: "Two" },
+                    { listId: "PLPAGE00003", name: "Three" },
+                ]);
+                const client = { clientName: "WEB", clientVersion: "2.0", hl: "en", gl: "GB" };
+                expect(
+                    posts(fetchMock).map(([url, init]) => [
+                        url,
+                        init?.credentials,
+                        JSON.parse(String(init?.body)),
+                    ]),
+                ).toEqual([
+                    [
+                        "/youtubei/v1/browse?prettyPrint=false",
+                        "omit",
+                        { context: { client }, continuation: "TOKEN-1" },
+                    ],
+                    [
+                        "/youtubei/v1/browse?prettyPrint=false",
+                        "omit",
+                        { context: { client }, continuation: "TOKEN-2" },
+                    ],
+                ]);
+            });
+
+            it.each([
+                ["is refused", () => Promise.resolve({ ok: false })],
+                ["never arrives", () => Promise.reject(new Error("network"))],
+            ])("keeps the pages already read when a continuation %s", async (_label, failure) => {
+                serve(tabHtml(YTCFG), [failure]);
+                expect(await playlistsOf()).toEqual([{ listId: "PLPAGE00001", name: "One" }]);
+            });
+
+            it("stops when a continuation hands the same page back", async () => {
+                const fetchMock = serve(tabHtml(YTCFG), [
+                    answer(
+                        continuationPage([
+                            lockup("PLPAGE00002", "Two"),
+                            continuationItem("TOKEN-1"),
+                        ]),
+                    ),
+                ]);
+                expect(await playlistsOf()).toEqual([
+                    { listId: "PLPAGE00001", name: "One" },
+                    { listId: "PLPAGE00002", name: "Two" },
+                ]);
+                expect(posts(fetchMock)).toHaveLength(2);
+            });
+
+            it("asks for no further page when the tab's page names no client", async () => {
+                const fetchMock = serve(tabHtml(""), [answer(continuationPage([]))]);
+                expect(await playlistsOf()).toEqual([{ listId: "PLPAGE00001", name: "One" }]);
+                expect(posts(fetchMock)).toHaveLength(0);
+            });
         });
 
         it("recovers via same-origin fetch when the live page has no ytInitialData", async () => {
