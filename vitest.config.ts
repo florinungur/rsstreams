@@ -23,7 +23,6 @@ export default defineConfig({
                 "src/lib/**",
                 "src/entrypoints/popup/**",
                 "src/entrypoints/extract-channel.ts",
-                "src/entrypoints/background.ts",
                 "src/ui/**",
             ],
             exclude: [

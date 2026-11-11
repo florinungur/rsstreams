@@ -75,13 +75,6 @@ const playlistsOf = async (): Promise<Array<{ listId: string; name: string }>> =
 };
 
 describe("entrypoint shells", () => {
-    it("background.ts is a no-op spec function", async () => {
-        const mod = await import("@/entrypoints/background");
-        const spec = mod.default as unknown as () => void;
-        expect(typeof spec).toBe("function");
-        expect(spec()).toBeUndefined();
-    });
-
     describe("extract-channel.ts", () => {
         // jsdom records no navigation entry; stand in for a document loaded at `url`.
         const loadedAt = (url: string | null): void => {
