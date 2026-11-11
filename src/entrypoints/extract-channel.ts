@@ -41,7 +41,6 @@ async function fetchPlaylistsContinuation(
         body: JSON.stringify({ context: { client }, continuation: token }),
         signal,
     });
-    if (!response.ok) return null;
     return response.json();
 }
 
