@@ -103,19 +103,23 @@ async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {
     return playlists.length > 0 ? { ...info, playlists } : info;
 }
 
-export default defineUnlistedScript(async (): Promise<ChannelInfo[]> => {
-    await whenDocumentReady(document);
+// The definition form, whose `main` WXT types as returning a value; the bare
+// function form is typed `() => void`.
+export default defineUnlistedScript({
+    main: async (): Promise<ChannelInfo[]> => {
+        await whenDocumentReady(document);
 
-    const initialYtInitialData =
-        window.ytInitialData ??
-        window.wrappedJSObject?.ytInitialData ??
-        extractYtInitialData(document);
+        const initialYtInitialData =
+            window.ytInitialData ??
+            window.wrappedJSObject?.ytInitialData ??
+            extractYtInitialData(document);
 
-    const channels = await resolveChannelInfo({
-        navigatedSinceLoad: navigatedSinceLoad(),
-        initialYtInitialData,
-        document,
-        fetchCurrentPage,
-    });
-    return Promise.all(channels.map(withPlaylistsTab));
+        const channels = await resolveChannelInfo({
+            navigatedSinceLoad: navigatedSinceLoad(),
+            initialYtInitialData,
+            document,
+            fetchCurrentPage,
+        });
+        return Promise.all(channels.map(withPlaylistsTab));
+    },
 });
