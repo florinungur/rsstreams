@@ -70,8 +70,9 @@ function pageKey(href: string): string {
 }
 
 // The Playlists tab holds the full list, a page at a time; the open page carries at
-// most the Home-tab shelves. One deadline covers every page of a channel's list,
-// and a page that fails keeps the ones read before it.
+// most the Home-tab shelves. One deadline covers every page of a channel's list, so
+// the popup never waits past it. A page that fails, or the deadline falling mid-list,
+// keeps the pages read before it, and the popup shows that part as the list.
 async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {
     // Keyed by list id, so a playlist a later page repeats keeps its first place.
     const playlists = new Map<string, NamedPlaylist>();
