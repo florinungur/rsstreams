@@ -341,7 +341,10 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
         expect(parsePlaylistsTab(data)).toEqual([]);
     });
 
-    it("keeps Show lockups, which carry PL playlist ids", () => {
+    it.each([
+        ["Show", "LOCKUP_CONTENT_TYPE_SHOW"],
+        ["Course", "LOCKUP_CONTENT_TYPE_COURSE"],
+    ])("keeps %s lockups, which carry PL playlist ids", (_kind, contentType) => {
         const data = {
             contents: {
                 twoColumnBrowseResultsRenderer: {
@@ -353,7 +356,7 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
                                         contents: [
                                             {
                                                 lockupViewModel: {
-                                                    contentType: "LOCKUP_CONTENT_TYPE_SHOW",
+                                                    contentType,
                                                     contentId: "PLSHOW001",
                                                     metadata: {
                                                         lockupMetadataViewModel: {
