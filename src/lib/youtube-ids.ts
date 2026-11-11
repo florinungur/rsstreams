@@ -27,14 +27,17 @@ export function asChannelId(value: string): ChannelId {
     return value;
 }
 
+function isListId(value: string): value is ListId {
+    return value.length > 0 && !value.startsWith(CHANNEL_PREFIX);
+}
+
 export function asListId(value: string): ListId {
-    if (value.length === 0) {
-        throw new Error("listId must be non-empty");
-    }
-    if (value.startsWith(CHANNEL_PREFIX)) {
-        throw new Error(`listId must not be a "${CHANNEL_PREFIX}" channel id; got "${value}"`);
-    }
-    return value as ListId;
+    if (isListId(value)) return value;
+    throw new Error(
+        value.length === 0
+            ? "listId must be non-empty"
+            : `listId must not be a "${CHANNEL_PREFIX}" channel id; got "${value}"`,
+    );
 }
 
 function stripChannelPrefix(channelId: ChannelId): string {
@@ -43,17 +46,17 @@ function stripChannelPrefix(channelId: ChannelId): string {
 
 /** UC… → UULF… (long-form videos only; excludes Shorts and Live). */
 export function longFormListId(channelId: ChannelId): ListId {
-    return `UULF${stripChannelPrefix(channelId)}` as ListId;
+    return asListId(`UULF${stripChannelPrefix(channelId)}`);
 }
 
 /** UC… → UUSH… (Shorts only). */
 export function shortsListId(channelId: ChannelId): ListId {
-    return `UUSH${stripChannelPrefix(channelId)}` as ListId;
+    return asListId(`UUSH${stripChannelPrefix(channelId)}`);
 }
 
 /** UC… → UULV… (Live broadcasts only). */
 export function liveListId(channelId: ChannelId): ListId {
-    return `UULV${stripChannelPrefix(channelId)}` as ListId;
+    return asListId(`UULV${stripChannelPrefix(channelId)}`);
 }
 
 export function channelFeedUrl(channelId: ChannelId): URL {

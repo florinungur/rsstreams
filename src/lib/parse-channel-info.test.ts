@@ -185,33 +185,34 @@ describe("parseChannelInfo – failure modes", () => {
     });
 });
 
-describe("parseChannelInfo – collab owner dialog", () => {
-    const collabOwner = (listItems: unknown): unknown => ({
-        owner: {
-            videoOwnerRenderer: {
-                navigationEndpoint: {
-                    showDialogCommand: {
-                        panelLoadingStrategy: {
-                            inlineContent: {
-                                dialogViewModel: {
-                                    customContent: { listViewModel: { listItems } },
-                                },
+const collabOwner = (listItems: unknown): unknown => ({
+    owner: {
+        videoOwnerRenderer: {
+            navigationEndpoint: {
+                showDialogCommand: {
+                    panelLoadingStrategy: {
+                        inlineContent: {
+                            dialogViewModel: {
+                                customContent: { listViewModel: { listItems } },
                             },
                         },
                     },
                 },
             },
         },
-    });
-    const collaborator = (browseId?: string, content?: string): unknown => ({
-        listItemViewModel: {
-            title: {
-                content,
-                commandRuns: [{ onTap: { innertubeCommand: { browseEndpoint: { browseId } } } }],
-            },
-        },
-    });
+    },
+});
 
+const collaborator = (browseId?: string, content?: string): unknown => ({
+    listItemViewModel: {
+        title: {
+            content,
+            commandRuns: [{ onTap: { innertubeCommand: { browseEndpoint: { browseId } } } }],
+        },
+    },
+});
+
+describe("parseChannelInfo – collab owner dialog", () => {
     it("skips collaborators without a UC browseId or a name", () => {
         const data = collabOwner([
             collaborator("UCKEPTXXXXXXXXXXXXXXXXXX", "Kept"),
@@ -1099,15 +1100,27 @@ describe("whenDocumentReady", () => {
     });
 });
 
+const emptyDoc = (): Document =>
+    new DOMParser().parseFromString("<html><body></body></html>", "text/html");
+
+const channelHtml = (id: string, title: string): string =>
+    `<html><body><script>var ytInitialData = ${JSON.stringify({
+        metadata: { channelMetadataRenderer: { externalId: id, title } },
+    })};</script></body></html>`;
+
+// Inject channel microdata into a live document, mimicking a `<meta
+// itemprop>` microformat block that YouTube renders on channel/handle pages.
+const settleMicrodata = (doc: Document, id: string, title: string): void => {
+    const idMeta = doc.createElement("meta");
+    idMeta.setAttribute("itemprop", "identifier");
+    idMeta.setAttribute("content", id);
+    const nameMeta = doc.createElement("meta");
+    nameMeta.setAttribute("itemprop", "name");
+    nameMeta.setAttribute("content", title);
+    doc.head.append(idMeta, nameMeta);
+};
+
 describe("resolveChannelInfo", () => {
-    const emptyDoc = (): Document =>
-        new DOMParser().parseFromString("<html><body></body></html>", "text/html");
-
-    const channelHtml = (id: string, title: string): string =>
-        `<html><body><script>var ytInitialData = ${JSON.stringify({
-            metadata: { channelMetadataRenderer: { externalId: id, title } },
-        })};</script></body></html>`;
-
     it("returns the local parse and never calls fetchCurrentPage when the live page yields a channel", async () => {
         const fetchCurrentPage = vi.fn();
         const [info] = await resolveChannelInfo({
@@ -1170,18 +1183,6 @@ describe("resolveChannelInfo", () => {
         });
         expect(channels).toEqual([]);
     });
-
-    // Inject channel microdata into a live document, mimicking a `<meta
-    // itemprop>` microformat block that YouTube renders on channel/handle pages.
-    const settleMicrodata = (doc: Document, id: string, title: string): void => {
-        const idMeta = doc.createElement("meta");
-        idMeta.setAttribute("itemprop", "identifier");
-        idMeta.setAttribute("content", id);
-        const nameMeta = doc.createElement("meta");
-        nameMeta.setAttribute("itemprop", "name");
-        nameMeta.setAttribute("content", title);
-        doc.head.append(idMeta, nameMeta);
-    };
 
     it("re-reads the live DOM when the refetch yields nothing but the page settled mid-await", async () => {
         const doc = emptyDoc();

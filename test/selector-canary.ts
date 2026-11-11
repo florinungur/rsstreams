@@ -50,6 +50,7 @@ function retryDelayMs(attempt: number, response?: Response): number {
 }
 
 // A GET, or with `body` the JSON POST YouTube's own page makes to its API.
+/* oxlint-disable no-await-in-loop -- a retry makes each attempt wait for the one before it */
 async function fetchYouTube(path: string, body?: unknown): Promise<string> {
     const verb = body === undefined ? "GET" : "POST";
     let lastCause = "";
@@ -112,6 +113,8 @@ async function fetchYouTube(path: string, body?: unknown): Promise<string> {
     throw new FetchUnavailableError(`${verb} ${path} -> ${lastCause}`); // unreachable; satisfies the type checker
 }
 
+/* oxlint-enable no-await-in-loop */
+
 async function fetchYouTubeOrSkip(ctx: TestContext, path: string, body?: unknown): Promise<string> {
     try {
         return await fetchYouTube(path, body);
@@ -133,10 +136,11 @@ function served(doc: Document, html: string): string {
     return `served "${doc.title}" (${html.length} chars)`;
 }
 
+const outcome = (p: SelfTestProbeResult) => (p.value ? "ok" : p.matched ? "no-value" : "miss");
+
 // Soft, so the ytInitialData checks after it still report on the same response.
 function expectSelectorsHealthy(doc: Document, html: string): void {
     const result = selfTest(html);
-    const outcome = (p: SelfTestProbeResult) => (p.value ? "ok" : p.matched ? "no-value" : "miss");
     const probes = [
         ...result.channelId.map((p) => `id:${p.name}=${outcome(p)}`),
         ...result.channelTitle.map((p) => `title:${p.name}=${outcome(p)}`),

@@ -46,15 +46,51 @@ const playlistsOf = async (): Promise<Array<{ listId: string; name: string }>> =
     return result?.playlists ?? [];
 };
 
+// jsdom records no navigation entry; stand in for a document loaded at `url`.
+const loadedAt = (url: string | null): void => {
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue(
+        url === null ? [] : [{ name: url } as PerformanceEntry],
+    );
+};
+
+const collaborator = (browseId: string, content: string): unknown => ({
+    listItemViewModel: {
+        title: {
+            content,
+            commandRuns: [{ onTap: { innertubeCommand: { browseEndpoint: { browseId } } } }],
+        },
+    },
+});
+
+// Each channel's Playlists tab lists one playlist named after the channel id.
+const playlistsTab = (channelId: string): string =>
+    `<html><body><script>var ytInitialData = ${JSON.stringify({
+        contents: {
+            twoColumnBrowseResultsRenderer: {
+                tabs: [
+                    {
+                        tabRenderer: {
+                            content: {
+                                sectionListRenderer: {
+                                    contents: [
+                                        {
+                                            gridPlaylistRenderer: {
+                                                playlistId: `PL${channelId}`,
+                                                title: { simpleText: channelId },
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    })};</script></body></html>`;
+
 describe("entrypoint shells", () => {
     describe("extract-channel.ts", () => {
-        // jsdom records no navigation entry; stand in for a document loaded at `url`.
-        const loadedAt = (url: string | null): void => {
-            vi.spyOn(performance, "getEntriesByType").mockReturnValue(
-                url === null ? [] : [{ name: url } as PerformanceEntry],
-            );
-        };
-
         beforeEach(() => {
             // Stub fetch with a failed response by default; individual tests override.
             vi.stubGlobal(
@@ -438,16 +474,6 @@ describe("entrypoint shells", () => {
         });
 
         it("returns every collaborator on a collab video, each with its own Playlists tab", async () => {
-            const collaborator = (browseId: string, content: string): unknown => ({
-                listItemViewModel: {
-                    title: {
-                        content,
-                        commandRuns: [
-                            { onTap: { innertubeCommand: { browseEndpoint: { browseId } } } },
-                        ],
-                    },
-                },
-            });
             window.ytInitialData = {
                 videoOwnerRenderer: {
                     navigationEndpoint: {
@@ -476,32 +502,6 @@ describe("entrypoint shells", () => {
                     },
                 },
             };
-            // Each channel's Playlists tab lists one playlist named after the channel id.
-            const playlistsTab = (channelId: string): string =>
-                `<html><body><script>var ytInitialData = ${JSON.stringify({
-                    contents: {
-                        twoColumnBrowseResultsRenderer: {
-                            tabs: [
-                                {
-                                    tabRenderer: {
-                                        content: {
-                                            sectionListRenderer: {
-                                                contents: [
-                                                    {
-                                                        gridPlaylistRenderer: {
-                                                            playlistId: `PL${channelId}`,
-                                                            title: { simpleText: channelId },
-                                                        },
-                                                    },
-                                                ],
-                                            },
-                                        },
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                })};</script></body></html>`;
             vi.stubGlobal(
                 "fetch",
                 vi.fn().mockImplementation(async (url: string) => {
