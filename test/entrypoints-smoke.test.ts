@@ -1,43 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChannelInfo } from "@/lib/feed-builder";
+import { continuationItem, continuationPage, lockup, tabPage } from "./playlists-tab";
 
-const lockup = (contentId: string, name: string): unknown => ({
-    lockupViewModel: {
-        contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
-        contentId,
-        metadata: { lockupMetadataViewModel: { title: { content: name } } },
-    },
-});
-const continuationItem = (token: string): unknown => ({
-    continuationItemRenderer: {
-        continuationEndpoint: { continuationCommand: { token } },
-    },
-});
-const continuationPage = (items: unknown[]): unknown => ({
-    onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: items } }],
-});
 const YTCFG = `<script>ytcfg.set({"INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"2.0","hl":"en","gl":"GB","visitorData":"V"}}});</script>`;
 // The tab's own page: one playlist and a token for the next page.
 const tabHtml = (ytcfg: string): string =>
-    `<html><body>${ytcfg}<script>var ytInitialData = ${JSON.stringify({
-        contents: {
-            twoColumnBrowseResultsRenderer: {
-                tabs: [
-                    {
-                        tabRenderer: {
-                            content: {
-                                sectionListRenderer: {
-                                    contents: [
-                                        lockup("PLPAGE00001", "One"),
-                                        continuationItem("TOKEN-1"),
-                                    ],
-                                },
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-    })};</script></body></html>`;
+    `<html><body>${ytcfg}<script>var ytInitialData = ${JSON.stringify(
+        tabPage([lockup("PLPAGE00001", "One"), continuationItem("TOKEN-1")]),
+    )};</script></body></html>`;
 
 // Serves `html` for the tab's page and `continuations` in turn for each
 // POST, the last one again once they run out.
@@ -57,8 +27,14 @@ const answer = (page: unknown) => () =>
 const posts = (fetchMock: ReturnType<typeof serve>) =>
     fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
 
+// Runs the injected script the way `scripting.executeScript` does.
+const extractChannels = async (): Promise<ChannelInfo[]> => {
+    const mod = await import("@/entrypoints/extract-channel");
+    return mod.default.main();
+};
+
 const playlistsOf = async (): Promise<Array<{ listId: string; name: string }>> => {
-    (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+    window.ytInitialData = {
         metadata: {
             channelMetadataRenderer: {
                 externalId: "UCSMOKEXXXXXXXXXXXXXXXXX",
@@ -66,11 +42,7 @@ const playlistsOf = async (): Promise<Array<{ listId: string; name: string }>> =
             },
         },
     };
-    const mod = await import("@/entrypoints/extract-channel");
-    const spec = mod.default as unknown as () => Promise<
-        Array<{ playlists: Array<{ listId: string; name: string }> }>
-    >;
-    const [result] = await spec();
+    const [result] = await extractChannels();
     return result?.playlists ?? [];
 };
 
@@ -93,21 +65,18 @@ describe("entrypoint shells", () => {
         });
 
         afterEach(() => {
-            delete (window as unknown as { ytInitialData?: unknown }).ytInitialData;
+            delete window.ytInitialData;
             vi.unstubAllGlobals();
             vi.restoreAllMocks();
         });
 
         it("returns no channels when ytInitialData and microdata are absent", async () => {
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<unknown>;
-            expect(typeof spec).toBe("function");
-            expect(await spec()).toEqual([]);
+            expect(await extractChannels()).toEqual([]);
         });
 
         it("falls back to inline window.ytInitialData and skips the playlists fetch when it fails", async () => {
             vi.stubGlobal("ytInitialData", undefined);
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCSMOKEXXXXXXXXXXXXXXXXX",
@@ -152,20 +121,13 @@ describe("entrypoint shells", () => {
                     },
                 },
             };
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<
-                Array<{
-                    channelId: string;
-                    playlists: Array<{ listId: string; name: string }>;
-                }>
-            >;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.channelId).toBe("UCSMOKEXXXXXXXXXXXXXXXXX");
             expect(result?.playlists).toEqual([{ listId: "PLSMOKE0001", name: "Home Shelf" }]);
         });
 
         it("replaces Home-shelf playlists with the canonical Playlists-tab list when fetch succeeds", async () => {
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCSMOKEXXXXXXXXXXXXXXXXX",
@@ -221,20 +183,14 @@ describe("entrypoint shells", () => {
                 }),
             );
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<
-                Array<{
-                    playlists: Array<{ listId: string; name: string }>;
-                }>
-            >;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.playlists).toEqual([
                 { listId: "PLFROMFETCH1", name: "Fetched Playlist" },
             ]);
         });
 
         it("keeps current-page playlists when the playlists tab fetch returns empty", async () => {
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCSMOKEXXXXXXXXXXXXXXXXX",
@@ -290,13 +246,7 @@ describe("entrypoint shells", () => {
                 }),
             );
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<
-                Array<{
-                    playlists: Array<{ listId: string; name: string }>;
-                }>
-            >;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.playlists).toEqual([{ listId: "PLKEEP00001", name: "Home Shelf" }]);
         });
 
@@ -383,21 +333,13 @@ describe("entrypoint shells", () => {
                 }),
             );
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<
-                Array<{
-                    channelId: string;
-                    channelTitle: string;
-                    playlists: Array<{ listId: string; name: string }>;
-                }>
-            >;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.channelId).toBe("UCRECOVERXXXXXXXXXXXXXX");
             expect(result?.channelTitle).toBe("Recovered Channel");
         });
 
         it("falls back to current-page playlists when fetch throws", async () => {
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCTHROWXXXXXXXXXXXXXXXXX",
@@ -407,20 +349,13 @@ describe("entrypoint shells", () => {
             };
             vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<
-                Array<{
-                    channelId: string;
-                    playlists: Array<{ listId: string; name: string }>;
-                }>
-            >;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.channelId).toBe("UCTHROWXXXXXXXXXXXXXXXXX");
             expect(result?.playlists).toEqual([]);
         });
 
         it("falls back to current-page playlists when the playlists tab fetch times out", async () => {
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCHANGXXXXXXXXXXXXXXXXXX",
@@ -442,14 +377,7 @@ describe("entrypoint shells", () => {
                 ),
             );
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<
-                Array<{
-                    channelId: string;
-                    playlists: Array<{ listId: string; name: string }>;
-                }>
-            >;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.channelId).toBe("UCHANGXXXXXXXXXXXXXXXXXX");
             expect(result?.playlists).toEqual([]);
         });
@@ -458,7 +386,7 @@ describe("entrypoint shells", () => {
             const rewritten = new URL(location.href);
             rewritten.searchParams.set("themeRefresh", "1");
             loadedAt(rewritten.href);
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCOPENPAGEXXXXXXXXXXXXXX",
@@ -467,9 +395,7 @@ describe("entrypoint shells", () => {
                 },
             };
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<Array<{ channelId: string }>>;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.channelId).toBe("UCOPENPAGEXXXXXXXXXXXXXX");
         });
 
@@ -486,7 +412,7 @@ describe("entrypoint shells", () => {
             ["the navigation entry is missing", null],
         ])("refetches over a stale window.ytInitialData when %s", async (_case, loadedUrl) => {
             loadedAt(loadedUrl);
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 metadata: {
                     channelMetadataRenderer: {
                         externalId: "UCPREVIOUSXXXXXXXXXXXXX",
@@ -507,9 +433,7 @@ describe("entrypoint shells", () => {
                 vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(currentHtml) }),
             );
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<Array<{ channelId: string }>>;
-            const [result] = await spec();
+            const [result] = await extractChannels();
             expect(result?.channelId).toBe("UCCURRENTXXXXXXXXXXXXXX");
         });
 
@@ -524,7 +448,7 @@ describe("entrypoint shells", () => {
                     },
                 },
             });
-            (window as unknown as { ytInitialData?: unknown }).ytInitialData = {
+            window.ytInitialData = {
                 videoOwnerRenderer: {
                     navigationEndpoint: {
                         showDialogCommand: {
@@ -588,9 +512,7 @@ describe("entrypoint shells", () => {
                 }),
             );
 
-            const mod = await import("@/entrypoints/extract-channel");
-            const spec = mod.default as unknown as () => Promise<unknown>;
-            expect(await spec()).toEqual([
+            expect(await extractChannels()).toEqual([
                 {
                     channelId: "UCUPLOADERXXXXXXXXXXXXX",
                     channelTitle: "Uploader",
