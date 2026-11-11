@@ -327,21 +327,17 @@ describe("entrypoint shells", () => {
                 ]);
                 const client = { clientName: "WEB", clientVersion: "2.0", hl: "en", gl: "GB" };
                 expect(
-                    posts(fetchMock).map(([url, init]) => [
-                        url,
-                        init?.credentials,
-                        JSON.parse(String(init?.body)),
-                    ]),
+                    posts(fetchMock).map(([url, init]) => [url, init?.credentials, init?.body]),
                 ).toEqual([
                     [
                         "/youtubei/v1/browse?prettyPrint=false",
                         "omit",
-                        { context: { client }, continuation: "TOKEN-1" },
+                        JSON.stringify({ context: { client }, continuation: "TOKEN-1" }),
                     ],
                     [
                         "/youtubei/v1/browse?prettyPrint=false",
                         "omit",
-                        { context: { client }, continuation: "TOKEN-2" },
+                        JSON.stringify({ context: { client }, continuation: "TOKEN-2" }),
                     ],
                 ]);
             });

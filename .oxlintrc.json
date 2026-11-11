@@ -8,7 +8,14 @@
         "pedantic": "off"
     },
     "rules": {
-        "no-floating-promises": "error",
+        "no-floating-promises": [
+            "error",
+            {
+                "allowForKnownSafeCalls": [
+                    { "from": "package", "name": ["describe", "it"], "package": "node:test" }
+                ]
+            }
+        ],
         "no-misused-promises": "error",
         "no-console": ["warn", { "allow": ["warn", "error"] }]
     },
