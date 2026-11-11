@@ -74,8 +74,8 @@ function pageKey(href: string): string {
 // most the Home-tab shelves. One deadline covers every page of a channel's list,
 // and a page that fails keeps the ones read before it.
 async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {
-    const playlists: NamedPlaylist[] = [];
-    const seen = new Set<string>();
+    // Keyed by list id, so a playlist a later page repeats keeps its first place.
+    const playlists = new Map<string, NamedPlaylist>();
     const signal = AbortSignal.timeout(10_000);
     try {
         const html = await fetchPlaylistsTab(info.channelId, signal);
@@ -83,16 +83,14 @@ async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {
             const client = extractInnertubeClient(html);
             let page = extractYtInitialData(new DOMParser().parseFromString(html, "text/html"));
             for (;;) {
-                const before = playlists.length;
+                const before = playlists.size;
                 for (const playlist of parsePlaylistsTab(page)) {
-                    if (seen.has(playlist.listId)) continue;
-                    seen.add(playlist.listId);
-                    playlists.push(playlist);
+                    playlists.set(playlist.listId, playlist);
                 }
                 const token = playlistsContinuation(page);
                 // A page that adds nothing ends the read, so a token that comes
                 // back again can't loop.
-                if (!token || !client || playlists.length === before) break;
+                if (!token || !client || playlists.size === before) break;
                 // oxlint-disable-next-line no-await-in-loop -- each token comes from the page before it
                 page = await fetchPlaylistsContinuation(token, client, signal);
             }
@@ -100,7 +98,7 @@ async function withPlaylistsTab(info: ChannelInfo): Promise<ChannelInfo> {
     } catch {
         // Keep what was read; with nothing read, the page's own playlists stand.
     }
-    return playlists.length > 0 ? { ...info, playlists } : info;
+    return playlists.size > 0 ? { ...info, playlists: [...playlists.values()] } : info;
 }
 
 // The definition form, whose `main` WXT types as returning a value; the bare
