@@ -197,7 +197,7 @@ describe("fetchChannelInfoFromActiveTab", () => {
         expect(await fetchChannelInfoFromActiveTab()).toEqual([]);
     });
 
-    it("rejects results with a non-string channelTitle", async () => {
+    it("rejects results with an empty channelTitle", async () => {
         mockBrowser.tabs.query.mockResolvedValue([{ id: 1 }]);
         mockBrowser.scripting.executeScript.mockResolvedValue([
             {

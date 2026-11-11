@@ -17,7 +17,7 @@ describe("entrypoint shells", () => {
         };
 
         beforeEach(() => {
-            // Stub fetch with a 404 by default; individual tests override.
+            // Stub fetch with a failed response by default; individual tests override.
             vi.stubGlobal(
                 "fetch",
                 vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve("") }),
