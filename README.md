@@ -31,6 +31,7 @@ pnpm test:run       # unit tests + 100% coverage gate
 pnpm build          # produce .output/firefox-mv3/
 pnpm e2e            # build the e2e variant + run the Selenium suite (needs Firefox)
 pnpm test:canary    # live-network probe: re-fetch YouTube, assert selectors still work
+pnpm lint           # oxlint with its type-aware rules; a warning fails it, as in CI
 pnpm format         # oxfmt, styled by .editorconfig
 pnpm format:check   # check only, as CI does
 ```
@@ -38,6 +39,8 @@ pnpm format:check   # check only, as CI does
 Lifecycle scripts are blocked globally for supply-chain safety; `wxt prepare` runs explicitly via the `wxt:prepare` script.
 
 Markdown goes through oxfmt with the code rather than through prettier, since the two wrap fenced JavaScript at different widths and would undo each other.
+
+Lint fails on a warning as well as an error, since a warning that passes goes unseen among the others. Two rules are off where what they flag is deliberate: `no-unsafe-type-assertion` in tests, whose casts build partial fixtures, and `no-console` in `scripts/`, which print their reports.
 
 ### End-to-end tests
 
