@@ -86,7 +86,7 @@ Select **"Does not collect any data."** The choice matches `data_collection_perm
 > Notes on behaviour:
 >
 > - The long-form / Shorts / Live feed URLs use undocumented YouTube playlist-ID prefixes (UULF / UUSH / UULV). They return an empty feed for a channel with no such content; the popup lists the rows regardless.
-> - To enumerate playlists, the content script fetches each channel's public `/playlists` page same-origin from within the YouTube tab; a video credited to several channels gets one request per channel. When the page's embedded data is stale or missing (YouTube's in-page navigation leaves it describing the first page loaded), it re-fetches the open page the same way. No third-party requests.
+> - To enumerate playlists, the content script fetches each channel's public `/playlists` page same-origin from within the YouTube tab. YouTube serves the list 30 playlists at a time, so a longer one continues through YouTube's own `POST /youtubei/v1/browse`, same-origin and without credentials, once per further page, sending the continuation token and the client name, version, language, and region the page embeds. A video credited to several channels gets the same requests per channel. When the page's embedded data is stale or missing (YouTube's in-page navigation leaves it describing the first page loaded), it re-fetches the open page the same way. No third-party requests.
 
 ## Source code submission
 

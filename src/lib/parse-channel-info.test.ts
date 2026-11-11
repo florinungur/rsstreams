@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+    extractInnertubeClient,
     extractYtInitialData,
     parseChannelInfo,
     parsePlaylistsTab,
+    playlistsContinuation,
     resolveChannelInfo,
     whenDocumentReady,
 } from "./parse-channel-info";
@@ -576,6 +578,97 @@ describe("parsePlaylistsTab – Playlists-tab grid", () => {
             },
         };
         expect(parsePlaylistsTab(data)).toEqual([{ listId: "PLSAME001", name: "Lockup" }]);
+    });
+});
+
+const lockup = (contentId: string, name: string): unknown => ({
+    lockupViewModel: {
+        contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST",
+        contentId,
+        metadata: { lockupMetadataViewModel: { title: { content: name } } },
+    },
+});
+const continuationItem = (token: string): unknown => ({
+    continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token } } },
+});
+// The tab's grid as ytInitialData holds it.
+const tabPage = (items: unknown[]): Record<string, unknown> => ({
+    contents: {
+        twoColumnBrowseResultsRenderer: {
+            tabs: [
+                {
+                    tabRenderer: {
+                        content: {
+                            sectionListRenderer: {
+                                contents: [
+                                    {
+                                        itemSectionRenderer: {
+                                            contents: [{ gridRenderer: { items } }],
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            ],
+        },
+    },
+});
+// The same items as a continuation response holds them.
+const continuationPage = (items: unknown[]): unknown => ({
+    onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: items } }],
+});
+
+describe("Playlists-tab paging", () => {
+    it("reads a continuation response's playlists and its next token", () => {
+        const page = continuationPage([lockup("PLNEXT001", "Next"), continuationItem("TOKEN-2")]);
+        expect(parsePlaylistsTab(page)).toEqual([{ listId: "PLNEXT001", name: "Next" }]);
+        expect(playlistsContinuation(page)).toBe("TOKEN-2");
+    });
+
+    it("reads the tab's token from ytInitialData and none of the page header's", () => {
+        const page = {
+            header: { engagementPanel: [continuationItem("HEADER-TOKEN")] },
+            ...tabPage([lockup("PLFIRST001", "First"), continuationItem("TAB-TOKEN")]),
+        };
+        expect(playlistsContinuation(page)).toBe("TAB-TOKEN");
+    });
+
+    it("finds no token on the last page, or in anything that is no page", () => {
+        expect(playlistsContinuation(tabPage([lockup("PLLAST0001", "Last")]))).toBeNull();
+        expect(playlistsContinuation(continuationPage([lockup("PLLAST0001", "Last")]))).toBeNull();
+        expect(playlistsContinuation(null)).toBeNull();
+        expect(playlistsContinuation("string")).toBeNull();
+        expect(playlistsContinuation({})).toBeNull();
+    });
+});
+
+describe("extractInnertubeClient", () => {
+    it("reads the client a live playlists page names", () => {
+        expect(extractInnertubeClient(loadFixture("mkbhd-playlists-tab.html"))).toEqual({
+            clientName: "WEB",
+            clientVersion: expect.stringMatching(/^\d+\.\d+/),
+            hl: "en",
+            gl: "GB",
+        });
+    });
+
+    it("keeps the name, the version, the language, and the region, and nothing else", () => {
+        const html = `<script>ytcfg.set({"INNERTUBE_CONTEXT":{"client":{"clientName":"WEB","clientVersion":"2.0","visitorData":"V"},"user":{}}});</script>`;
+        expect(extractInnertubeClient(html)).toEqual({ clientName: "WEB", clientVersion: "2.0" });
+    });
+
+    it.each([
+        ["no context", "<html></html>"],
+        ["a context that never closes", `ytcfg.set({"INNERTUBE_CONTEXT":{"client":{`],
+        ["a context that is no JSON", `ytcfg.set({"INNERTUBE_CONTEXT":{oops}});`],
+        [
+            "a client with no version",
+            `ytcfg.set({"INNERTUBE_CONTEXT":{"client":{"clientName":"WEB"}}});`,
+        ],
+    ])("returns null for a page with %s", (_label, html) => {
+        expect(extractInnertubeClient(html)).toBeNull();
     });
 });
 

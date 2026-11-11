@@ -152,28 +152,90 @@ function findNamedPlaylists(data: Record<string, unknown>): NamedPlaylist[] {
 }
 
 /**
- * Named playlists from the Playlists tab, which holds the full list (the Home
- * tab shows a curated subset). Keeps `PL…` IDs only: the private lists (`FL`,
- * `LL`, `WL`, `HL`) have no public feed.
+ * Named playlists from one page of the Playlists tab, which holds the full list
+ * (the Home tab shows a curated subset): the tab's own ytInitialData, or the
+ * response to a continuation request. Keeps `PL…` IDs only: the private lists
+ * (`FL`, `LL`, `WL`, `HL`) have no public feed.
  */
-export function parsePlaylistsTab(ytInitialData: unknown): NamedPlaylist[] {
-    if (!isRecord(ytInitialData)) return [];
-    const tabs = readPath(ytInitialData, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
-    if (!Array.isArray(tabs)) return [];
-
+export function parsePlaylistsTab(page: unknown): NamedPlaylist[] {
     const out: NamedPlaylist[] = [];
-    const seen = new Set<string>();
-    for (const tab of tabs) {
-        const sections = readPath(tab, [
-            "tabRenderer",
-            "content",
-            "sectionListRenderer",
-            "contents",
-        ]);
-        if (!Array.isArray(sections)) continue;
-        collectLockupPlaylists(sections, out, seen);
-    }
+    collectLockupPlaylists(playlistsTabItems(page), out, new Set<string>());
     return out;
+}
+
+/**
+ * The token that asks YouTube for the page of the Playlists tab after this one,
+ * or null on the last page.
+ */
+export function playlistsContinuation(page: unknown): string | null {
+    return findContinuationToken(playlistsTabItems(page));
+}
+
+// Where a page of the tab keeps its items: under each tab's sections in
+// ytInitialData, and under the append action in a continuation response. Nothing
+// else is searched, since the page header carries continuation tokens of its own.
+function playlistsTabItems(page: unknown): unknown[] {
+    const items: unknown[] = [];
+    const tabs = readPath(page, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
+    for (const tab of Array.isArray(tabs) ? tabs : []) {
+        items.push(readPath(tab, ["tabRenderer", "content", "sectionListRenderer", "contents"]));
+    }
+    const actions = readPath(page, ["onResponseReceivedActions"]);
+    for (const action of Array.isArray(actions) ? actions : []) {
+        items.push(readPath(action, ["appendContinuationItemsAction", "continuationItems"]));
+    }
+    return items;
+}
+
+function findContinuationToken(node: unknown): string | null {
+    if (!Array.isArray(node) && !isRecord(node)) return null;
+    const token = pickString(
+        readPath(node, [
+            "continuationItemRenderer",
+            "continuationEndpoint",
+            "continuationCommand",
+            "token",
+        ]),
+    );
+    if (token) return token;
+    for (const value of Object.values(node)) {
+        const found = findContinuationToken(value);
+        if (found) return found;
+    }
+    return null;
+}
+
+/** The client a request to YouTube's own API names itself as. */
+export interface InnertubeClient {
+    clientName: string;
+    clientVersion: string;
+    hl?: string;
+    gl?: string;
+}
+
+/**
+ * The client the page names in its own API requests, read from the `ytcfg` its
+ * HTML embeds. Only the name, the version, and the language and region the page
+ * was served in are kept.
+ */
+export function extractInnertubeClient(html: string): InnertubeClient | null {
+    const MARKER = '"INNERTUBE_CONTEXT":';
+    const start = html.indexOf(MARKER);
+    if (start === -1) return null;
+    const slice = sliceJsonObject(html, start + MARKER.length);
+    if (slice === null) return null;
+    let context: unknown;
+    try {
+        context = JSON.parse(slice);
+    } catch {
+        return null;
+    }
+    const clientName = pickString(readPath(context, ["client", "clientName"]));
+    const clientVersion = pickString(readPath(context, ["client", "clientVersion"]));
+    if (!clientName || !clientVersion) return null;
+    const hl = pickString(readPath(context, ["client", "hl"]));
+    const gl = pickString(readPath(context, ["client", "gl"]));
+    return { clientName, clientVersion, ...(hl && { hl }), ...(gl && { gl }) };
 }
 
 function collectLockupPlaylists(node: unknown, out: NamedPlaylist[], seen: Set<string>): void {
